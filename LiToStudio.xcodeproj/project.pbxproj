@@ -1,0 +1,661 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0232ADA1D9503B9E15D4488B /* MeshExtract.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2C8193E76491B64568D1E41 /* MeshExtract.swift */; };
+		05728ADEA00B69064F40C54A /* LiToEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA246E5F875D69346ACE56E /* LiToEngine.swift */; };
+		156B2055DAE661677DEFA759 /* Preprocess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E212768FD0F064477D0D8 /* Preprocess.swift */; };
+		1DBEF33938D6EF59AEA1FF56 /* SceneKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D2BE8459BCBF3767462C6F /* SceneKitView.swift */; };
+		26EFAFE44E270D0F45F87094 /* LiToKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		286EDFB891C659A5D9DE906C /* Dit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DC8EBF6F8A3D5F54A095C0A /* Dit.swift */; };
+		2AE923360DF1D71CEDFDEA7A /* Smoke.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A951581951BC2C23CC65233 /* Smoke.swift */; };
+		2CC6A8905DD077C5C60E3716 /* MLXRandom in Frameworks */ = {isa = PBXBuildFile; productRef = E5D7579C878C3CE522AD13C7 /* MLXRandom */; };
+		2DFADC9A6D4A75CE69E4E98E /* Weights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 893FFEE3759321630385BAE1 /* Weights.swift */; };
+		35E45D0AC7BC81FA47599E66 /* Dinov2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CB0A8E77EACD424F21D8459 /* Dinov2.swift */; };
+		3BDB0E36F08B2A125F1553CC /* NormalRefine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56D0614699F389A1F1741822 /* NormalRefine.swift */; };
+		3C5B987DC2D510DE2916D797 /* PipelineRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3F525618466DD630D0A20B /* PipelineRunner.swift */; };
+		4692286050E6760A111CF5FE /* MetalSplatter in Frameworks */ = {isa = PBXBuildFile; productRef = 54259F99A5BB804F1D15A6B1 /* MetalSplatter */; };
+		517733F71DF3CFA7B202A793 /* Nn.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECEF2552728B4C77884ECC59 /* Nn.swift */; };
+		5816E037325253578F2F2788 /* Trellis.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F3908713CE12C21743D3E6 /* Trellis.swift */; };
+		5FC86C62A96A8FA644854FC2 /* SapiensNormal.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6834324A46C15439B96598A /* SapiensNormal.swift */; };
+		6359BA004FF5469A1A1E2F05 /* LiToStudioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2319E61960EF499A15E57086 /* LiToStudioApp.swift */; };
+		68FB1CF49FAA7D6A6D90CF0D /* VoxelDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D60A63EB15D18C8C6985E2A /* VoxelDecoder.swift */; };
+		725AFFD0ABF55FCC18D18E56 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = F446A93E077AF89213467BC0 /* MLX */; };
+		76D2AADCEE9D9BB972320ABD /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = F3F66C28694B98A93B5BBDED /* MLXFast */; };
+		7791287D1F221F0647731123 /* Splat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1740A56A90DBB6A794F9D295 /* Splat.swift */; };
+		91D2710F67F426D031A2C0B3 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 3A20FA88AF14968C6350FFED /* MLXNN */; };
+		9EE3238AE0408E8E8EFC3E39 /* GaussianDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABBD753DAA1DA81ED35CAA17 /* GaussianDecoder.swift */; };
+		A7F0A483D434670B389E67A3 /* Parity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9400783481BE80B07723395A /* Parity.swift */; };
+		AE102BD1F8142185E2CBA6F1 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F767070956104EE6623E3138 /* AppModel.swift */; };
+		B0B3521E392D70EBF7DC1CC1 /* RMBG.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29B2B60CA077798F5C87812 /* RMBG.swift */; };
+		BE1048DF8FD4DBE405AC3FFE /* MarchingCubesTables.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5552F9A76E22C32907560EA /* MarchingCubesTables.swift */; };
+		D22A756E3C58329B6EB56062 /* Upscaler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB944B113CB1963BD2BD67E9 /* Upscaler.swift */; };
+		D5BEE60CB44F6C5C6034FA7E /* SplatIO in Frameworks */ = {isa = PBXBuildFile; productRef = B753486D3D42AA79393F8351 /* SplatIO */; };
+		DD27C86A60962588E104D5F5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4C70AEC130CF33AC647BD0 /* Theme.swift */; };
+		EC8C3CC439E092065B463370 /* ImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3DD27612024AA5C1003C15D /* ImageAnalyzer.swift */; };
+		EFFE913D146979A15C810721 /* SplatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BED85D4F8BB9553372D4179 /* SplatView.swift */; };
+		F08D2F9108CB2DC502A52A8C /* Attn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C619A96D2246BB6E6372D9 /* Attn.swift */; };
+		F0B86D2AF7C9154043F6ADAD /* LiToKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */; };
+		F9EBFA1052C141B159BD6BDB /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C12F9FAAD89C25D6F185666 /* ContentView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2FE9EFDB61F123A116B41B43 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 745ADDD6486A65992DCB01CB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 83F6C7A6FB62B4DBEF754A55;
+			remoteInfo = LiToKit;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FC88AEB3162C8A26845967B5 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				26EFAFE44E270D0F45F87094 /* LiToKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1740A56A90DBB6A794F9D295 /* Splat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Splat.swift; sourceTree = "<group>"; };
+		1A4C70AEC130CF33AC647BD0 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		2319E61960EF499A15E57086 /* LiToStudioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiToStudioApp.swift; sourceTree = "<group>"; };
+		2A951581951BC2C23CC65233 /* Smoke.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Smoke.swift; sourceTree = "<group>"; };
+		2D24C584FD257A058ACEF16F /* LiToStudio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiToStudio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		42D2BE8459BCBF3767462C6F /* SceneKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneKitView.swift; sourceTree = "<group>"; };
+		4BA246E5F875D69346ACE56E /* LiToEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiToEngine.swift; sourceTree = "<group>"; };
+		4C12F9FAAD89C25D6F185666 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		54C619A96D2246BB6E6372D9 /* Attn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attn.swift; sourceTree = "<group>"; };
+		55F1A2B67BA6E51E1900B9C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		56D0614699F389A1F1741822 /* NormalRefine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NormalRefine.swift; sourceTree = "<group>"; };
+		5D60A63EB15D18C8C6985E2A /* VoxelDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoxelDecoder.swift; sourceTree = "<group>"; };
+		5DC8EBF6F8A3D5F54A095C0A /* Dit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dit.swift; sourceTree = "<group>"; };
+		893FFEE3759321630385BAE1 /* Weights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Weights.swift; sourceTree = "<group>"; };
+		8CB0A8E77EACD424F21D8459 /* Dinov2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dinov2.swift; sourceTree = "<group>"; };
+		9400783481BE80B07723395A /* Parity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Parity.swift; sourceTree = "<group>"; };
+		9BED85D4F8BB9553372D4179 /* SplatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplatView.swift; sourceTree = "<group>"; };
+		9C3F525618466DD630D0A20B /* PipelineRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineRunner.swift; sourceTree = "<group>"; };
+		A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LiToKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A29B2B60CA077798F5C87812 /* RMBG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RMBG.swift; sourceTree = "<group>"; };
+		ABBD753DAA1DA81ED35CAA17 /* GaussianDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaussianDecoder.swift; sourceTree = "<group>"; };
+		B06E212768FD0F064477D0D8 /* Preprocess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preprocess.swift; sourceTree = "<group>"; };
+		B5552F9A76E22C32907560EA /* MarchingCubesTables.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarchingCubesTables.swift; sourceTree = "<group>"; };
+		C6834324A46C15439B96598A /* SapiensNormal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SapiensNormal.swift; sourceTree = "<group>"; };
+		D3DD27612024AA5C1003C15D /* ImageAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageAnalyzer.swift; sourceTree = "<group>"; };
+		E6F3908713CE12C21743D3E6 /* Trellis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trellis.swift; sourceTree = "<group>"; };
+		ECEF2552728B4C77884ECC59 /* Nn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Nn.swift; sourceTree = "<group>"; };
+		F2C8193E76491B64568D1E41 /* MeshExtract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshExtract.swift; sourceTree = "<group>"; };
+		F767070956104EE6623E3138 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		FB944B113CB1963BD2BD67E9 /* Upscaler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Upscaler.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		528D04DC12AC108055098098 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				725AFFD0ABF55FCC18D18E56 /* MLX in Frameworks */,
+				91D2710F67F426D031A2C0B3 /* MLXNN in Frameworks */,
+				76D2AADCEE9D9BB972320ABD /* MLXFast in Frameworks */,
+				2CC6A8905DD077C5C60E3716 /* MLXRandom in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECCE8C71191E9E1C4001C109 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F0B86D2AF7C9154043F6ADAD /* LiToKit.framework in Frameworks */,
+				4692286050E6760A111CF5FE /* MetalSplatter in Frameworks */,
+				D5BEE60CB44F6C5C6034FA7E /* SplatIO in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		07BCD8627FBB225E891437F3 = {
+			isa = PBXGroup;
+			children = (
+				0BD5533554326E353023CCAC /* LiToKit */,
+				D0B1ECDE01A847C03E615DAB /* LiToStudio */,
+				124FF01EA978B0F03FFD4962 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		0BD5533554326E353023CCAC /* LiToKit */ = {
+			isa = PBXGroup;
+			children = (
+				54C619A96D2246BB6E6372D9 /* Attn.swift */,
+				8CB0A8E77EACD424F21D8459 /* Dinov2.swift */,
+				5DC8EBF6F8A3D5F54A095C0A /* Dit.swift */,
+				ABBD753DAA1DA81ED35CAA17 /* GaussianDecoder.swift */,
+				D3DD27612024AA5C1003C15D /* ImageAnalyzer.swift */,
+				4BA246E5F875D69346ACE56E /* LiToEngine.swift */,
+				B5552F9A76E22C32907560EA /* MarchingCubesTables.swift */,
+				F2C8193E76491B64568D1E41 /* MeshExtract.swift */,
+				ECEF2552728B4C77884ECC59 /* Nn.swift */,
+				56D0614699F389A1F1741822 /* NormalRefine.swift */,
+				9400783481BE80B07723395A /* Parity.swift */,
+				B06E212768FD0F064477D0D8 /* Preprocess.swift */,
+				A29B2B60CA077798F5C87812 /* RMBG.swift */,
+				C6834324A46C15439B96598A /* SapiensNormal.swift */,
+				2A951581951BC2C23CC65233 /* Smoke.swift */,
+				1740A56A90DBB6A794F9D295 /* Splat.swift */,
+				E6F3908713CE12C21743D3E6 /* Trellis.swift */,
+				FB944B113CB1963BD2BD67E9 /* Upscaler.swift */,
+				5D60A63EB15D18C8C6985E2A /* VoxelDecoder.swift */,
+				893FFEE3759321630385BAE1 /* Weights.swift */,
+			);
+			name = LiToKit;
+			path = Sources/LiToKit;
+			sourceTree = "<group>";
+		};
+		124FF01EA978B0F03FFD4962 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */,
+				2D24C584FD257A058ACEF16F /* LiToStudio.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		14835C87A351F7D8954AF326 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				F767070956104EE6623E3138 /* AppModel.swift */,
+				9C3F525618466DD630D0A20B /* PipelineRunner.swift */,
+				1A4C70AEC130CF33AC647BD0 /* Theme.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		605BE1265A1C9D83EED4C819 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				4C12F9FAAD89C25D6F185666 /* ContentView.swift */,
+				42D2BE8459BCBF3767462C6F /* SceneKitView.swift */,
+				9BED85D4F8BB9553372D4179 /* SplatView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D0B1ECDE01A847C03E615DAB /* LiToStudio */ = {
+			isa = PBXGroup;
+			children = (
+				55F1A2B67BA6E51E1900B9C9 /* Info.plist */,
+				2319E61960EF499A15E57086 /* LiToStudioApp.swift */,
+				14835C87A351F7D8954AF326 /* Core */,
+				605BE1265A1C9D83EED4C819 /* Views */,
+			);
+			name = LiToStudio;
+			path = Sources/LiToStudio;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		83F6C7A6FB62B4DBEF754A55 /* LiToKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3920BFFCC7923EA41B711FFE /* Build configuration list for PBXNativeTarget "LiToKit" */;
+			buildPhases = (
+				63EF0696928DEDA842AA7BEC /* Sources */,
+				528D04DC12AC108055098098 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LiToKit;
+			packageProductDependencies = (
+				F446A93E077AF89213467BC0 /* MLX */,
+				3A20FA88AF14968C6350FFED /* MLXNN */,
+				F3F66C28694B98A93B5BBDED /* MLXFast */,
+				E5D7579C878C3CE522AD13C7 /* MLXRandom */,
+			);
+			productName = LiToKit;
+			productReference = A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		EE8D1BC4C58B67ECB3CBE3FC /* LiToStudio */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4B95F23C7BB0169724C3F383 /* Build configuration list for PBXNativeTarget "LiToStudio" */;
+			buildPhases = (
+				7671E119C10FA98BFD12E8E2 /* Sources */,
+				ECCE8C71191E9E1C4001C109 /* Frameworks */,
+				FC88AEB3162C8A26845967B5 /* Embed Frameworks */,
+				16808283FCDF278407F115C1 /* Colocate MLX metallib & link weights */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				ED4504AE359413DBA246634A /* PBXTargetDependency */,
+			);
+			name = LiToStudio;
+			packageProductDependencies = (
+				54259F99A5BB804F1D15A6B1 /* MetalSplatter */,
+				B753486D3D42AA79393F8351 /* SplatIO */,
+			);
+			productName = LiToStudio;
+			productReference = 2D24C584FD257A058ACEF16F /* LiToStudio.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		745ADDD6486A65992DCB01CB /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 023F1BC9C59700F5465AC8AD /* Build configuration list for PBXProject "LiToStudio" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 07BCD8627FBB225E891437F3;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				98F894E1B147440A27AA771C /* XCRemoteSwiftPackageReference "MetalSplatter" */,
+				0C7C9DC60372FEE80770DCD0 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 124FF01EA978B0F03FFD4962 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				83F6C7A6FB62B4DBEF754A55 /* LiToKit */,
+				EE8D1BC4C58B67ECB3CBE3FC /* LiToStudio */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		16808283FCDF278407F115C1 /* Colocate MLX metallib & link weights */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Colocate MLX metallib & link weights";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n# MLX loads its Metal shaders from `mlx.metallib` next to the executable.\nMLIB=\"$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/mlx.metallib\"\ncp -f \"$SRCROOT/weights/mlx.metallib\" \"$MLIB\"\n# It sits in Contents/MacOS, so the app's CodeSign step treats it as a nested\n# code object — pre-sign it here or the final codesign fails.\ncodesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" \"$MLIB\"\n# Expose the (large) checkout weights via a symlink in Resources — no copy.\nln -sfn \"$SRCROOT/weights\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/weights\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		63EF0696928DEDA842AA7BEC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F08D2F9108CB2DC502A52A8C /* Attn.swift in Sources */,
+				35E45D0AC7BC81FA47599E66 /* Dinov2.swift in Sources */,
+				286EDFB891C659A5D9DE906C /* Dit.swift in Sources */,
+				9EE3238AE0408E8E8EFC3E39 /* GaussianDecoder.swift in Sources */,
+				EC8C3CC439E092065B463370 /* ImageAnalyzer.swift in Sources */,
+				05728ADEA00B69064F40C54A /* LiToEngine.swift in Sources */,
+				BE1048DF8FD4DBE405AC3FFE /* MarchingCubesTables.swift in Sources */,
+				0232ADA1D9503B9E15D4488B /* MeshExtract.swift in Sources */,
+				517733F71DF3CFA7B202A793 /* Nn.swift in Sources */,
+				3BDB0E36F08B2A125F1553CC /* NormalRefine.swift in Sources */,
+				A7F0A483D434670B389E67A3 /* Parity.swift in Sources */,
+				156B2055DAE661677DEFA759 /* Preprocess.swift in Sources */,
+				B0B3521E392D70EBF7DC1CC1 /* RMBG.swift in Sources */,
+				5FC86C62A96A8FA644854FC2 /* SapiensNormal.swift in Sources */,
+				2AE923360DF1D71CEDFDEA7A /* Smoke.swift in Sources */,
+				7791287D1F221F0647731123 /* Splat.swift in Sources */,
+				5816E037325253578F2F2788 /* Trellis.swift in Sources */,
+				D22A756E3C58329B6EB56062 /* Upscaler.swift in Sources */,
+				68FB1CF49FAA7D6A6D90CF0D /* VoxelDecoder.swift in Sources */,
+				2DFADC9A6D4A75CE69E4E98E /* Weights.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7671E119C10FA98BFD12E8E2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AE102BD1F8142185E2CBA6F1 /* AppModel.swift in Sources */,
+				F9EBFA1052C141B159BD6BDB /* ContentView.swift in Sources */,
+				6359BA004FF5469A1A1E2F05 /* LiToStudioApp.swift in Sources */,
+				3C5B987DC2D510DE2916D797 /* PipelineRunner.swift in Sources */,
+				1DBEF33938D6EF59AEA1FF56 /* SceneKitView.swift in Sources */,
+				EFFE913D146979A15C810721 /* SplatView.swift in Sources */,
+				DD27C86A60962588E104D5F5 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		ED4504AE359413DBA246634A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 83F6C7A6FB62B4DBEF754A55 /* LiToKit */;
+			targetProxy = 2FE9EFDB61F123A116B41B43 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		30405FB7973DB09E95EB6F64 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sources/LiToStudio/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.litostudio.app;
+				PRODUCT_NAME = "LiTo Studio";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		461FEF5214F158B8D46474DF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.litostudio.litokit;
+				PRODUCT_NAME = LiToKit;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		4B204C58AC967C7CD60AD704 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sources/LiToStudio/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.litostudio.app;
+				PRODUCT_NAME = "LiTo Studio";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4CDE9814BEFDD0B78EDE22D5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_COMPILER_FLAGS = "-Wno-c++17-extensions";
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				MTL_LANGUAGE_REVISION = Metal30;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C8A84D2879D9F9722E094851 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_COMPILER_FLAGS = "-Wno-c++17-extensions";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				MTL_LANGUAGE_REVISION = Metal30;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D4E6C7DC3771B836F5D0A78A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.litostudio.litokit;
+				PRODUCT_NAME = LiToKit;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		023F1BC9C59700F5465AC8AD /* Build configuration list for PBXProject "LiToStudio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4CDE9814BEFDD0B78EDE22D5 /* Debug */,
+				C8A84D2879D9F9722E094851 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3920BFFCC7923EA41B711FFE /* Build configuration list for PBXNativeTarget "LiToKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				461FEF5214F158B8D46474DF /* Debug */,
+				D4E6C7DC3771B836F5D0A78A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4B95F23C7BB0169724C3F383 /* Build configuration list for PBXNativeTarget "LiToStudio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4B204C58AC967C7CD60AD704 /* Debug */,
+				30405FB7973DB09E95EB6F64 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0C7C9DC60372FEE80770DCD0 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.31.4;
+			};
+		};
+		98F894E1B147440A27AA771C /* XCRemoteSwiftPackageReference "MetalSplatter" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/scier/MetalSplatter.git";
+			requirement = {
+				kind = revision;
+				revision = 2b965de1934de38dda1c71cf90bf798aa948a14c;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3A20FA88AF14968C6350FFED /* MLXNN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0C7C9DC60372FEE80770DCD0 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXNN;
+		};
+		54259F99A5BB804F1D15A6B1 /* MetalSplatter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 98F894E1B147440A27AA771C /* XCRemoteSwiftPackageReference "MetalSplatter" */;
+			productName = MetalSplatter;
+		};
+		B753486D3D42AA79393F8351 /* SplatIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 98F894E1B147440A27AA771C /* XCRemoteSwiftPackageReference "MetalSplatter" */;
+			productName = SplatIO;
+		};
+		E5D7579C878C3CE522AD13C7 /* MLXRandom */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0C7C9DC60372FEE80770DCD0 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXRandom;
+		};
+		F3F66C28694B98A93B5BBDED /* MLXFast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0C7C9DC60372FEE80770DCD0 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXFast;
+		};
+		F446A93E077AF89213467BC0 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0C7C9DC60372FEE80770DCD0 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 745ADDD6486A65992DCB01CB /* Project object */;
+}

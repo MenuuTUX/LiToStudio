@@ -1,0 +1,28 @@
+# SwiftPM / Xcode build products
+.build/
+DerivedData/
+LiToStudio.xcodeproj/project.xcworkspace/xcuserdata/
+LiToStudio.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+
+# Large model weights live here and are not meant for normal commits.
+# (Remove this line if you intentionally vendor the weights via Git LFS.)
+weights/
+
+# Local run artifacts
+*.ply
+out.ply
+out/
+TMP/
+
+# Local test photos (not for publishing) and benchmark outputs
+testset/
+bench/baseline/
+bench/bin/
+
+# Quarantined dev tooling (model conversion) — venv + cloned repo, never the app's concern
+tools/convert_sapiens2/.venv/
+tools/convert_sapiens2/sapiens2/
