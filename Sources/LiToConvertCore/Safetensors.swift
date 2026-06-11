@@ -3,7 +3,7 @@ import Foundation
 /// Streaming **safetensors** writer. Header is computed up front from shapes+dtypes
 /// (so we never need the bytes to lay out offsets), then each tensor's raw storage
 /// bytes are copied straight through — keeping peak memory to one tensor at a time.
-enum Safetensors {
+public enum Safetensors {
     enum Err: Error, CustomStringConvertible {
         case io(String), noncontig(String)
         var description: String {
@@ -15,10 +15,11 @@ enum Safetensors {
     }
 
     /// Write `tensors` (name, descriptor) reading storage bytes from `zip`.
-    /// Returns (tensorCount, totalDataBytes).
+    /// Returns (tensorCount, totalDataBytes). `progress` reports (bytesWritten, bytesTotal)
+    /// after each tensor — the first-run setup UI feeds a progress bar from it.
     @discardableResult
-    static func write(_ tensors: [(String, TorchTensor)], zip: TorchZip, prefix: String,
-                      to url: URL) throws -> (Int, Int) {
+    public static func write(_ tensors: [(String, TorchTensor)], zip: TorchZip, prefix: String,
+                             to url: URL, progress: ((Int, Int) -> Void)? = nil) throws -> (Int, Int) {
         // 1) lay out the data section: each tensor gets a contiguous [start,end) range
         var header = [String: Any]()
         var offsets: [(String, TorchTensor, Int, Int)] = []   // name, t, start, end
@@ -45,11 +46,12 @@ enum Safetensors {
         try fh.write(contentsOf: headerData)
 
         // 3) stream tensor bytes in declared order
-        for (name, t, _, _) in offsets {
+        for (name, t, _, end) in offsets {
             guard let storageData = zip.storage(prefix: prefix, key: t.storage.key) else {
                 throw Err.io("missing storage data/\(t.storage.key) for '\(name)'")
             }
             try fh.write(contentsOf: materialize(t, from: storageData))
+            progress?(end, cursor)
         }
         return (tensors.count, cursor)
     }

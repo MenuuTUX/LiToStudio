@@ -3,7 +3,7 @@ import Foundation
 /// Tensor element types we may meet in a torch checkpoint, with their safetensors
 /// spelling and byte width. We preserve the on-disk dtype verbatim (no casting) —
 /// both torch and safetensors store little-endian, so conversion is a byte copy.
-enum TorchDType {
+public enum TorchDType {
     case f64, f32, f16, bf16, i64, i32, i16, i8, u8, bool
 
     init?(storageClass name: String) {
@@ -21,7 +21,7 @@ enum TorchDType {
         default: return nil
         }
     }
-    var itemSize: Int {
+    public var itemSize: Int {
         switch self {
         case .f64, .i64: return 8
         case .f32, .i32: return 4
@@ -29,7 +29,7 @@ enum TorchDType {
         case .i8, .u8, .bool: return 1
         }
     }
-    var safetensors: String {
+    public var safetensors: String {
         switch self {
         case .f64: return "F64"; case .f32: return "F32"; case .f16: return "F16"
         case .bf16: return "BF16"; case .i64: return "I64"; case .i32: return "I32"
@@ -39,14 +39,14 @@ enum TorchDType {
     }
 }
 
-final class TorchStorage { let dtype: TorchDType; let key: String; let numel: Int
+public final class TorchStorage { public let dtype: TorchDType; let key: String; let numel: Int
     init(_ dtype: TorchDType, _ key: String, _ numel: Int) { self.dtype = dtype; self.key = key; self.numel = numel } }
 
 /// A tensor view into a storage: shape + C-order check come from size/stride.
-struct TorchTensor { let storage: TorchStorage; let offset: Int; let shape: [Int]; let stride: [Int]
-    var numel: Int { shape.reduce(1, *) }
+public struct TorchTensor { public let storage: TorchStorage; public let offset: Int; public let shape: [Int]; let stride: [Int]
+    public var numel: Int { shape.reduce(1, *) }
     /// True when the view is plain row-major over the storage start (the common case).
-    var isContiguous: Bool {
+    public var isContiguous: Bool {
         if offset != 0 { return false }
         var expected = 1
         for d in stride.indices.reversed() {
@@ -58,10 +58,10 @@ struct TorchTensor { let storage: TorchStorage; let offset: Int; let shape: [Int
     }
 }
 
-final class PyDict { var items: [(PyVal, PyVal)] = [] }
-final class PyList { var items: [PyVal] = [] }
+public final class PyDict { var items: [(PyVal, PyVal)] = [] }
+public final class PyList { var items: [PyVal] = [] }
 
-indirect enum PyVal {
+public indirect enum PyVal {
     case none, bool(Bool), int(Int64), double(Double), str(String), bytes(Data)
     case tuple([PyVal]), list(PyList), dict(PyDict)
     case global(String, String), storage(TorchStorage), tensor(TorchTensor), object
@@ -70,7 +70,7 @@ indirect enum PyVal {
 /// A tiny unpickler covering the opcode subset `torch.save` produces (protocols 2–5),
 /// enough to recover a `state_dict` of tensor descriptors. Storage bytes are NOT read
 /// here — `persistent_load` only records (dtype, key, numel); the caller reads bytes lazily.
-final class TorchUnpickler {
+public final class TorchUnpickler {
     enum Err: Error, CustomStringConvertible {
         case opcode(UInt8, Int), truncated, shape(String)
         var description: String {
@@ -88,7 +88,7 @@ final class TorchUnpickler {
     private var marks: [Int] = []
     private var memo: [Int: PyVal] = [:]
 
-    init(_ data: Data) { self.b = [UInt8](data) }
+    public init(_ data: Data) { self.b = [UInt8](data) }
 
     // MARK: byte helpers
     private func byte() throws -> UInt8 { guard pos < b.count else { throw Err.truncated }; defer { pos += 1 }; return b[pos] }
@@ -150,7 +150,7 @@ final class TorchUnpickler {
         }
     }
 
-    func load() throws -> PyVal {
+    public func load() throws -> PyVal {
         while true {
             let op = try byte()
             switch op {
@@ -226,7 +226,7 @@ final class TorchUnpickler {
 
 extension PyVal {
     /// Flatten a (possibly nested) dict of tensors into `dotted.name → TorchTensor`.
-    func flattenTensors(prefix: String = "", into out: inout [(String, TorchTensor)]) {
+    public func flattenTensors(prefix: String = "", into out: inout [(String, TorchTensor)]) {
         guard case .dict(let d) = self else { return }
         for (k, v) in d.items {
             guard case .str(let key) = k else { continue }
@@ -239,7 +239,7 @@ extension PyVal {
         }
     }
     /// The `state_dict` sub-dict if present, else self.
-    var stateDict: PyVal {
+    public var stateDict: PyVal {
         if case .dict(let d) = self {
             for (k, v) in d.items { if case .str("state_dict") = k, case .dict = v { return v } }
         }

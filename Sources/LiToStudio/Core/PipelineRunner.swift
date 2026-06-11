@@ -4,46 +4,91 @@ import ImageIO
 import LiToKit
 
 enum Config {
-    static let weightsDir: URL = {
-        let fm = FileManager.default
-        // A directory only counts as the weights dir if it actually holds the model.
-        func hasWeights(_ url: URL) -> Bool {
-            fm.fileExists(atPath: url.appending(path: "lito.safetensors").path)
-        }
-
+    /// Every place a weights directory may live, in resolution order. Re-evaluated on
+    /// each access (cheap stats) so first-run setup can install into one of them and
+    /// have the engine pick it up without relaunching.
+    private static func weightsCandidates() -> [URL] {
+        var out = [URL]()
         // 1. Explicit override — lets you point anywhere without rebuilding.
         if let env = ProcessInfo.processInfo.environment["LITO_WEIGHTS_DIR"], !env.isEmpty {
-            return URL(filePath: env)
+            out.append(URL(filePath: env))
         }
-
         // 2. weights/ sitting next to the executable or one level up (repo checkout
         //    via `swift run`, or a .app with weights copied alongside it).
         let exeDir = Bundle.main.bundleURL.deletingLastPathComponent()
-        for base in [exeDir, exeDir.deletingLastPathComponent()] {
-            let cand = base.appending(path: "weights")
-            if hasWeights(cand) { return cand }
-        }
-
+        out.append(exeDir.appending(path: "weights"))
+        out.append(exeDir.deletingLastPathComponent().appending(path: "weights"))
         // 3. Walk up from the executable looking for a repo-level weights/ dir.
         //    Covers `.build/<triple>/debug/` under SwiftPM and DerivedData layouts.
         var dir = Bundle.main.bundleURL
         for _ in 0..<8 {
-            let cand = dir.appending(path: "weights")
-            if hasWeights(cand) { return cand }
+            out.append(dir.appending(path: "weights"))
             let parent = dir.deletingLastPathComponent()
             if parent == dir { break }
             dir = parent
         }
-
         // 4. App's Resources — either the weights laid down directly, or a
         //    `weights/` symlink the Xcode build phase drops in (points at the checkout).
         if let res = Bundle.main.resourceURL {
-            if hasWeights(res) { return res }
-            let sub = res.appending(path: "weights")
-            if hasWeights(sub) { return sub }
+            out.append(res)
+            out.append(res.appending(path: "weights"))
         }
-        return Bundle.main.resourceURL ?? exeDir.appending(path: "weights")
-    }()
+        // 5. Per-user install target — where first-run setup puts everything when
+        //    no checkout-level weights dir exists (e.g. a bare downloaded .app).
+        out.append(appSupportWeights)
+        return out
+    }
+
+    private static func hasWeights(_ url: URL) -> Bool {
+        FileManager.default.fileExists(atPath: url.appending(path: "lito.safetensors").path)
+    }
+
+    static var appSupportWeights: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appending(path: "LiToStudio/weights")
+    }
+
+    static var weightsDir: URL {
+        let candidates = weightsCandidates()
+        for c in candidates where hasWeights(c) { return c }
+        return candidates[0]
+    }
+
+    /// Where first-run setup installs: the override dir, an existing writable
+    /// weights/ dir near the code (dev checkout), else per-user Application Support.
+    static var installDir: URL {
+        let fm = FileManager.default
+        if let env = ProcessInfo.processInfo.environment["LITO_WEIGHTS_DIR"], !env.isEmpty {
+            let dir = URL(filePath: env)
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }
+        for c in weightsCandidates().dropFirst(0) where c.lastPathComponent == "weights" {
+            var isDir: ObjCBool = false
+            let resolved = c.resolvingSymlinksInPath()
+            if fm.fileExists(atPath: resolved.path, isDirectory: &isDir), isDir.boolValue,
+               fm.isWritableFile(atPath: resolved.path) {
+                return resolved
+            }
+        }
+        let dir = appSupportWeights
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// MLX refuses to start unless `mlx.metallib` sits next to the executable.
+    /// run.sh and the Xcode post-build step normally handle that; after first-run
+    /// setup (or for a bare .app) the app does it itself.
+    @discardableResult
+    static func ensureMetallibColocated() -> Bool {
+        let fm = FileManager.default
+        guard let exe = Bundle.main.executableURL?.resolvingSymlinksInPath() else { return false }
+        let dst = exe.deletingLastPathComponent().appending(path: "mlx.metallib")
+        if fm.fileExists(atPath: dst.path) { return true }
+        let src = weightsDir.appending(path: "mlx.metallib")
+        guard fm.fileExists(atPath: src.path) else { return false }
+        do { try fm.copyItem(at: src, to: dst); return true } catch { return false }
+    }
     static var outputDir: URL {
         let d = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appending(path: "LiToStudio/results")
@@ -181,6 +226,9 @@ func runPipeline(_ args: PipelineArgs) -> AsyncStream<RunEvent> {
             do {
                 engineLock.lock(); defer { engineLock.unlock() }
                 if sharedEngine == nil {
+                    if !Config.ensureMetallibColocated() {
+                        continuation.yield(.line("[MLX] warning: mlx.metallib not colocated — GPU backend may fail to start"))
+                    }
                     continuation.yield(.progress(stage: "Loading model (first run)…", fraction: 0.05))
                     sharedEngine = try LiToEngine(weightsDir: Config.weightsDir)
                 }

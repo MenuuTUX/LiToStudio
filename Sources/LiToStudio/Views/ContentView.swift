@@ -3,16 +3,23 @@ import AppKit
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    // First run on a machine without the models: show setup instead of the app.
+    @State private var needsSetup = WeightsInstaller.needsSetup
+
     var body: some View {
-        HStack(spacing: 0) {
-            Sidebar()
-                .frame(width: 384)
-            Divider().overlay(Theme.stroke)
-            ViewerPane()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        if needsSetup {
+            SetupView { needsSetup = false }
+        } else {
+            HStack(spacing: 0) {
+                Sidebar()
+                    .frame(width: 384)
+                Divider().overlay(Theme.stroke)
+                ViewerPane()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.bg)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.bg)
     }
 }
 
@@ -356,7 +363,7 @@ struct ViewerPane: View {
     /// Which modes have an artifact to show.
     private var available: [ViewerMode] {
         var m = [ViewerMode]()
-        if model.splatURL != nil { m.append(.splat) }
+        if model.splatURL != nil, SplatView.isSupported { m.append(.splat) }
         if model.meshURL != nil { m.append(.mesh) }
         if model.resultURL != nil { m.append(.points) }
         return m

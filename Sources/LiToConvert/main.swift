@@ -1,4 +1,5 @@
 import Foundation
+import LiToConvertCore
 
 // LiToConvert — one-time, dev-only weight converter (Foundation-only; not shipped).
 //

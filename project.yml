@@ -34,6 +34,18 @@ schemes:
       config: Debug
 
 targets:
+  LiToConvertCore:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/LiToConvertCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.litostudio.litoconvertcore
+        PRODUCT_NAME: LiToConvertCore
+        DEFINES_MODULE: YES
+        GENERATE_INFOPLIST_FILE: YES
+
   LiToKit:
     type: framework
     platform: macOS
@@ -62,6 +74,7 @@ targets:
       - path: Sources/LiToStudio
     dependencies:
       - target: LiToKit
+      - target: LiToConvertCore
       - package: MetalSplatter
         product: MetalSplatter
       - package: MetalSplatter
@@ -72,11 +85,15 @@ targets:
         script: |
           set -e
           # MLX loads its Metal shaders from `mlx.metallib` next to the executable.
-          MLIB="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/mlx.metallib"
-          cp -f "$SRCROOT/weights/mlx.metallib" "$MLIB"
-          # It sits in Contents/MacOS, so the app's CodeSign step treats it as a nested
-          # code object — pre-sign it here or the final codesign fails.
-          codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" "$MLIB"
+          # Missing on a fresh clone is fine: first-run setup downloads it and the
+          # app colocates it itself before the engine starts.
+          if [ -f "$SRCROOT/weights/mlx.metallib" ]; then
+            MLIB="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/mlx.metallib"
+            cp -f "$SRCROOT/weights/mlx.metallib" "$MLIB"
+            # It sits in Contents/MacOS, so the app's CodeSign step treats it as a nested
+            # code object — pre-sign it here or the final codesign fails.
+            codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" "$MLIB"
+          fi
           # Expose the (large) checkout weights via a symlink in Resources — no copy.
           ln -sfn "$SRCROOT/weights" "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/weights"
     settings:

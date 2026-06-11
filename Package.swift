@@ -18,6 +18,7 @@ let package = Package(
             name: "LiToStudio",
             dependencies: [
                 "LiToKit",
+                "LiToConvertCore",
                 .product(name: "MetalSplatter", package: "MetalSplatter"),
                 .product(name: "SplatIO", package: "MetalSplatter"),
             ],
@@ -25,10 +26,16 @@ let package = Package(
             // Info.plist is consumed by the Xcode app target (project.yml), not SwiftPM.
             exclude: ["Info.plist"]
         ),
-        // One-time, dev-only weight converter: torch-zip (.ckpt/.pth) → .safetensors.
-        // Foundation-only on purpose — no MLX dependency, so it builds/runs fast.
+        // Torch-zip (.ckpt/.pth) → .safetensors conversion, shared by the LiToConvert
+        // CLI and the app's first-run setup. Foundation-only on purpose — no MLX.
+        .target(
+            name: "LiToConvertCore",
+            path: "Sources/LiToConvertCore"
+        ),
+        // Dev CLI wrapper around LiToConvertCore (list tensors, one-off conversions).
         .executableTarget(
             name: "LiToConvert",
+            dependencies: ["LiToConvertCore"],
             path: "Sources/LiToConvert"
         ),
         // The native inference engine (DINOv2 → DiT → voxel VAE → gaussian decoder).

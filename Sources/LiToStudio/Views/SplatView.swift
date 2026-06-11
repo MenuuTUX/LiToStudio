@@ -14,6 +14,24 @@ struct SplatView: NSViewRepresentable {
     let url: URL
     var autoRotate: Bool
 
+    /// SplatRenderer.init fatalErrors (uncatchable) when `default.metallib` is missing
+    /// from MetalSplatter's resource bundle. Xcode compiles the package's shaders into
+    /// one; plain `swift build` only copies the .metal sources, so run.sh compiles the
+    /// metallib post-build. Pre-flight here so a packaging gap degrades to the SceneKit
+    /// viewers instead of crashing the app.
+    static let isSupported: Bool = {
+        let bases = [Bundle.main.resourceURL, Bundle.main.bundleURL].compactMap { $0 }
+        for base in bases {
+            let url = base.appending(path: "MetalSplatter_MetalSplatter.bundle")
+            if let bundle = Bundle(url: url),
+               bundle.url(forResource: "default", withExtension: "metallib") != nil {
+                return true
+            }
+        }
+        NSLog("SplatView: MetalSplatter_MetalSplatter.bundle has no default.metallib — splat viewer disabled (build via ./run.sh or Xcode)")
+        return false
+    }()
+
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> SplatMTKView {
@@ -70,7 +88,7 @@ struct SplatView: NSViewRepresentable {
         }
 
         func load(url: URL) {
-            guard url != loadedURL, let device else { return }
+            guard SplatView.isSupported, url != loadedURL, let device else { return }
             loadedURL = url
             loadTask?.cancel()
             loadTask = Task { [weak self] in

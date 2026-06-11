@@ -6,7 +6,7 @@ import Foundation
 /// never need zlib — we just locate each entry's raw byte range. The 6.9 GB LiTo
 /// checkpoint exceeds 32-bit offsets, so zip64 (EOCD64 locator/record + 0x0001
 /// extra fields) is mandatory. The file is memory-mapped; slices are zero-copy views.
-struct TorchZip {
+public struct TorchZip {
     enum ZipError: Error, CustomStringConvertible {
         case notFound(String)
         case unsupported(String)
@@ -23,7 +23,7 @@ struct TorchZip {
     let data: Data                 // memory-mapped archive bytes
     private(set) var entries: [String: Entry] = [:]
 
-    init(url: URL) throws {
+    public init(url: URL) throws {
         self.data = try Data(contentsOf: url, options: .alwaysMapped)
         try index()
     }
@@ -123,7 +123,7 @@ struct TorchZip {
     }
 
     /// The single `*/data.pkl` entry (the pickle stream) and the archive's name prefix.
-    func pickle() throws -> (bytes: Data, prefix: String) {
+    public func pickle() throws -> (bytes: Data, prefix: String) {
         guard let name = entries.keys.first(where: { $0.hasSuffix("/data.pkl") }) ?? entries.keys.first(where: { $0 == "data.pkl" }) else {
             throw ZipError.notFound("data.pkl")
         }

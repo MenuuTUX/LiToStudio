@@ -29,11 +29,31 @@ swift build -c "$CONFIG"
 BIN="$(swift build -c "$CONFIG" --show-bin-path)"
 
 # Colocate the MLX Metal library with the binaries so the GPU backend loads.
-if [[ ! -f weights/mlx.metallib ]]; then
-  echo "✗ weights/mlx.metallib is missing — the GPU backend can't start without it." >&2
+# Missing on a fresh clone is fine for the app: first-run setup downloads all
+# models (incl. the metallib) and the engine colocates it itself.
+if [[ -f weights/mlx.metallib ]]; then
+  cp -f weights/mlx.metallib "$BIN/mlx.metallib"
+elif [[ "$SUB" == "app" ]]; then
+  echo "▶ No weights yet — the app's first-run setup will download everything."
+else
+  echo "✗ weights/mlx.metallib is missing — run the app once (./run.sh) so first-run setup can fetch the models." >&2
   exit 1
 fi
-cp -f weights/mlx.metallib "$BIN/mlx.metallib"
+
+# MetalSplatter loads its shaders from a compiled default.metallib inside its
+# resource bundle. Xcode's build system compiles the package's .metal files into
+# one automatically, but `swift build` just copies the sources — and without the
+# metallib, SplatRenderer.init fatalErrors the moment the viewer loads a splat.
+MS_BUNDLE="$BIN/MetalSplatter_MetalSplatter.bundle"
+if [[ -d "$MS_BUNDLE" ]]; then
+  for src in "$MS_BUNDLE"/*.metal; do
+    if [[ ! -f "$MS_BUNDLE/default.metallib" || "$src" -nt "$MS_BUNDLE/default.metallib" ]]; then
+      echo "▶ Compiling MetalSplatter shaders…"
+      (cd "$MS_BUNDLE" && xcrun -sdk macosx metal -O2 -o default.metallib ./*.metal)
+      break
+    fi
+  done
+fi
 
 # Point the engine at this checkout's weights/ regardless of where the binary lives.
 export LITO_WEIGHTS_DIR="$PWD/weights"
