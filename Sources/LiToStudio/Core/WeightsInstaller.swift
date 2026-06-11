@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 import LiToConvertCore
 
 /// First-run model installer: downloads every weight the engine needs into
@@ -55,7 +54,7 @@ final class WeightsInstaller {
             Spec(file: "lito_dit_rgba.ckpt",
                  url: URL(string: "https://ml-site.cdn-apple.com/models/lito/lito_dit_rgba.ckpt")!,
                  sha256: nil,
-                 approxBytes: 7_400_000_000, required: true,
+                 approxBytes: 7_365_078_343, required: true,
                  convertsTo: "lito.safetensors"),
         ]
     }()
@@ -125,10 +124,15 @@ final class WeightsInstaller {
                 let id = spec.convertsTo ?? spec.file
                 do {
                     let dest = dir.appending(path: spec.file)
-                    setPhase(id, .downloading(-1))
-                    try await Self.download(spec: spec, to: dest) { [weak self] done, total in
-                        Task { @MainActor [weak self] in
-                            self?.setPhase(id, .downloading(total > 0 ? Double(done) / Double(total) : -1))
+                    // dest already present means an earlier run downloaded (and verified)
+                    // it but died before the convert step — don't fetch 7 GB twice.
+                    if !FileManager.default.fileExists(atPath: dest.path) {
+                        setPhase(id, .downloading(-1))
+                        try await WeightsDownload.fetch(url: spec.url, sha256: spec.sha256,
+                                                        to: dest) { [weak self] done, total in
+                            Task { @MainActor [weak self] in
+                                self?.setPhase(id, .downloading(total > 0 ? Double(done) / Double(total) : -1))
+                            }
                         }
                     }
                     if spec.sha256 != nil { setPhase(id, .verifying) }
@@ -165,81 +169,6 @@ final class WeightsInstaller {
             let n = ByteCountFormatter.string(fromByteCount: need, countStyle: .file)
             diskWarning = "About \(n) of free space is needed during setup; only \(f) is available."
         }
-    }
-
-    // MARK: download (streaming hash + HTTP-range resume)
-
-    enum InstallError: Error, CustomStringConvertible {
-        case http(Int, String)
-        case checksum(String)
-        var description: String {
-            switch self {
-            case .http(let code, let file): return "HTTP \(code) while fetching \(file)"
-            case .checksum(let file): return "checksum mismatch for \(file) — partial file removed, retry setup"
-            }
-        }
-    }
-
-    nonisolated static func download(spec: Spec, to dest: URL,
-                                     progress: @escaping @Sendable (Int64, Int64) -> Void) async throws {
-        let fm = FileManager.default
-        try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let part = dest.appendingPathExtension("part")
-        var hasher = SHA256()
-        var have: Int64 = 0
-
-        // resume: hash the bytes we already have so the final digest covers the whole file
-        if let fh = try? FileHandle(forReadingFrom: part) {
-            while let chunk = try fh.read(upToCount: 8 << 20), !chunk.isEmpty {
-                hasher.update(data: chunk); have += Int64(chunk.count)
-            }
-            try fh.close()
-        } else {
-            fm.createFile(atPath: part.path, contents: nil)
-        }
-
-        var req = URLRequest(url: spec.url)
-        if have > 0 { req.setValue("bytes=\(have)-", forHTTPHeaderField: "Range") }
-        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-        guard let http = resp as? HTTPURLResponse else { throw InstallError.http(-1, spec.file) }
-        if have > 0 && http.statusCode == 200 {
-            // server ignored the Range header — start over
-            hasher = SHA256(); have = 0
-            try? fm.removeItem(at: part); fm.createFile(atPath: part.path, contents: nil)
-        }
-        guard http.statusCode == 200 || http.statusCode == 206 else {
-            throw InstallError.http(http.statusCode, spec.file)
-        }
-        let total = have + max(http.expectedContentLength, 0)
-
-        let fh = try FileHandle(forWritingTo: part)
-        try fh.seekToEnd()
-        defer { try? fh.close() }
-        var buf = Data(); buf.reserveCapacity(4 << 20)
-        var lastReport = Date.distantPast
-        for try await byte in bytes {
-            buf.append(byte)
-            if buf.count >= 4 << 20 {
-                try fh.write(contentsOf: buf)
-                hasher.update(data: buf)
-                have += Int64(buf.count)
-                buf.removeAll(keepingCapacity: true)
-                let now = Date()
-                if now.timeIntervalSince(lastReport) > 0.2 { progress(have, total); lastReport = now }
-            }
-        }
-        if !buf.isEmpty { try fh.write(contentsOf: buf); hasher.update(data: buf); have += Int64(buf.count) }
-        progress(have, max(total, have))
-
-        if let want = spec.sha256 {
-            let got = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-            guard got == want else {
-                try? fm.removeItem(at: part)
-                throw InstallError.checksum(spec.file)
-            }
-        }
-        if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
-        try fm.moveItem(at: part, to: dest)
     }
 
     /// ckpt → safetensors off the cooperative pool (it's minutes of blocking I/O).

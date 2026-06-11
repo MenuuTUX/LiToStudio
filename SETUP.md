@@ -5,11 +5,19 @@ A 100% native (Swift + MLX, no Python) image → 3D gaussian-splat app for Apple
 ## Requirements
 - Apple Silicon Mac, macOS 15+ (tested on macOS 26, Apple Silicon, 16 GB)
 - Xcode 16+ (provides the Swift 6 toolchain and the Metal compiler)
-- The model weights in `weights/` (not in the repo — place them there yourself):
-  - `lito.safetensors` (~7.4 GB) — DINOv2 + DiT + voxel VAE + gaussian decoder
-  - `ss_enc/dec_conv3d_16l8_fp16.safetensors` — voxel tokenizer
-  - `mlx.metallib` — MLX's Metal shader library (**required**, see note below)
+- The model weights in `weights/` — **you normally don't fetch these by hand**: on
+  first launch the app shows a setup screen that downloads everything it can
+  redistribute or derive (checksum-verified, resumable) and converts Apple's
+  checkpoint locally. The list, for reference and offline installs:
+  - `lito.safetensors` (~7.4 GB) — DINOv2 + DiT + voxel VAE + gaussian decoder.
+    Manual path: `curl -LO https://ml-site.cdn-apple.com/models/lito/lito_dit_rgba.ckpt`
+    then `swift run -c release LiToConvert lito_dit_rgba.ckpt weights/lito.safetensors`
+  - `ss_enc/dec_conv3d_16l8_fp16.safetensors` + `.json` — voxel tokenizer
+    (`huggingface.co/microsoft/TRELLIS-image-large`, `ckpts/` folder)
+  - `mlx.metallib` — MLX's Metal shader library (**required**, see note below);
+    auto-downloaded from this repo's GitHub release
   - `RMBG2.mlpackage`, `RealESRGAN_x4.mlmodel` — CoreML pre-processing models
+    (optional; ESRGAN auto-downloads, RMBG is a manual install — Bria license)
 
 ## Run it (simplest)
 
@@ -86,6 +94,25 @@ open LiToStudio.xcodeproj   # select the "LiToStudio" scheme and ⌘R
 
 A post-build script copies `mlx.metallib` next to the app executable and symlinks
 `weights/` into the app's Resources, so the in-DerivedData `.app` finds everything.
+
+## Publishing checklist (maintainer)
+
+First-run setup pulls `mlx.metallib` and `RealESRGAN_x4.mlmodel` from this repo's
+GitHub release `weights-v1` (`Sources/LiToStudio/Core/WeightsInstaller.swift` pins
+the URLs and sha256s). After pushing, create it once from a checkout that has the
+files:
+
+```bash
+gh release create weights-v1 weights/mlx.metallib weights/RealESRGAN_x4.mlmodel \
+  --title "Auxiliary weights v1" \
+  --notes "mlx.metallib: MLX GPU kernels (MIT, ml-explore/mlx). RealESRGAN_x4.mlmodel: CoreML conversion of Real-ESRGAN x4 (BSD-3, xinntao/Real-ESRGAN).
+sha256:
+b258f6f95490b819a217d01654b04cd0a4c53219ad7949185989f23f1ca4f6aa  mlx.metallib
+6107dc417de87bf974e5b225a2632e2c78f2849265dc897981f482e922050ec9  RealESRGAN_x4.mlmodel"
+```
+
+If either file ever changes, cut `weights-v2` and bump the URL + sha256 in
+`WeightsInstaller.manifest`.
 
 ## The one non-obvious thing: `mlx.metallib`
 

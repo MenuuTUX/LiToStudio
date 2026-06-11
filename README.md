@@ -46,33 +46,28 @@ The app saves results to `~/Library/Application Support/LiToStudio/results/`.
 ```bash
 git clone https://github.com/MenuuTUX/LiToStudio.git
 cd LiToStudio
-# put the weights in weights/ (next section), then:
 ./run.sh
 ```
 
-`run.sh` builds with SwiftPM, compiles the splat-viewer shaders, colocates the MLX Metal library, points the engine at this checkout's `weights/`, and launches the app. See [SETUP.md](SETUP.md) for the full developer setup, including running from Xcode.
+That's it. On a machine without the models, the app opens a **first-run setup screen**: one click downloads everything (~7.8 GB, checksum-verified, resumable) and converts Apple's LiTo checkpoint locally — then drops you into the app. Plan for ~15 GB of free disk during setup (the 7.4 GB checkpoint and its converted form briefly coexist; the checkpoint is deleted afterwards).
 
-### Getting the weights
+`run.sh` builds with SwiftPM, compiles the splat-viewer shaders, colocates the MLX Metal library, and launches. See [SETUP.md](SETUP.md) for the full developer setup, including running from Xcode.
 
-The repo ships **no weights**; place these in `weights/`:
+### What first-run setup installs
 
-| File | Required | What it is |
+| File | Required | Source |
 |---|---|---|
-| `lito.safetensors` (~7.4 GB) | yes | DINOv2 + DiT + voxel VAE + gaussian decoder, converted from Apple's checkpoint (below) |
-| `ss_dec_conv3d_16l8_fp16.safetensors` + `.json` (and the matching `ss_enc_*` pair) | yes | Sparse-voxel tokenizer from the [`apple/ml-lito`](https://github.com/apple/ml-lito) release (the engine reads the decoder at inference) |
-| `mlx.metallib` | yes | MLX's compiled GPU kernel library — not produced by `swift build`; take it from an MLX build's products |
-| `RMBG2.mlpackage` | no | CoreML conversion of [BriaAI RMBG-2.0](https://huggingface.co/briaai/RMBG-2.0) background removal; without it the app falls back to Apple Vision |
-| `RealESRGAN_x4.mlmodel` | no | CoreML conversion of [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) 4× upscaler; skipped when absent |
-| `SapiensNormal.mlpackage` | no | Meta Sapiens normal estimator for photo-measured mesh refinement; produce it with `./tools/convert_sapiens2/convert.sh` or the bundled Colab notebook |
+| `lito.safetensors` (~7.4 GB) | yes | [Apple's LiTo checkpoint](https://ml-site.cdn-apple.com/models/lito/lito_dit_rgba.ckpt), downloaded and converted on your Mac by the bundled pure-Swift converter |
+| `ss_*_conv3d_16l8_fp16.safetensors` + `.json` | yes | Sparse-voxel tokenizer, fetched from [microsoft/TRELLIS-image-large](https://huggingface.co/microsoft/TRELLIS-image-large) (byte-identical to the files the LiTo release uses; sha256-pinned) |
+| `mlx.metallib` | yes | MLX's compiled GPU kernel library (MIT), from this repo's [releases](https://github.com/MenuuTUX/LiToStudio/releases) |
+| `RealESRGAN_x4.mlmodel` | optional | CoreML conversion of [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) 4× (BSD-3), from this repo's releases |
 
-Convert the main checkpoint with the bundled, dependency-free converter:
+Two optional models are **not** auto-downloaded because their licenses don't permit redistribution — the app works without them:
 
-```bash
-curl -L -o lito_dit_rgba.ckpt https://ml-site.cdn-apple.com/models/lito/lito_dit_rgba.ckpt
-swift run -c release LiToConvert lito_dit_rgba.ckpt weights/lito.safetensors
-```
+- `RMBG2.mlpackage` ([BriaAI RMBG-2.0](https://huggingface.co/briaai/RMBG-2.0) background removal) — without it the pipeline falls back to Apple Vision.
+- `SapiensNormal.mlpackage` (Meta Sapiens normal estimator for photo-measured mesh refinement) — produce it with `./tools/convert_sapiens2/convert.sh` or the bundled Colab notebook.
 
-To keep weights somewhere else, set `LITO_WEIGHTS_DIR=/path/to/weights`.
+Weights live in `weights/` next to the checkout (or `~/Library/Application Support/LiToStudio/weights` for a bare .app). Point anywhere else with `LITO_WEIGHTS_DIR=/path/to/weights`. Prefer doing it by hand or offline? Every manual step is in [SETUP.md](SETUP.md).
 
 ## Using the app
 
@@ -105,9 +100,10 @@ The `LiToSmoke` binary underneath exposes more for development — per-stage che
 
 | Symptom | Cause / fix |
 |---|---|
-| `MLX error: Failed to load the default metallib` | `mlx.metallib` must sit next to the executable. `./run.sh` and the Xcode post-build step handle this; a bare `swift build` binary won't have it. |
+| `MLX error: Failed to load the default metallib` | `mlx.metallib` must sit next to the executable. `./run.sh`, the Xcode post-build step, and the app itself (after first-run setup) all handle this; a bare `swift build` binary won't have it. |
 | Splat view missing or empty | The MetalSplatter shader library wasn't compiled (plain `swift build` doesn't compile Metal resources). `./run.sh` builds it automatically; Xcode builds always have it. |
-| "Model weights not found" | Check `weights/lito.safetensors` exists, or set `LITO_WEIGHTS_DIR`. |
+| "Model weights not found" / setup reappears | Run first-run setup to completion, check `weights/lito.safetensors` exists, or set `LITO_WEIGHTS_DIR`. |
+| A download fails mid-setup | Hit Retry — downloads resume from where they stopped, and every file is checksum-verified before install. |
 | Very slow / memory pressure | The model holds ~7.4 GB; on 16 GB Macs close other heavy apps, lower the step count, and disable best-of-N. The first generation also pays a one-time model load. |
 
 ## Acknowledgements

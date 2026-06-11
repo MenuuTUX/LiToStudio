@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0232ADA1D9503B9E15D4488B /* MeshExtract.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2C8193E76491B64568D1E41 /* MeshExtract.swift */; };
 		05728ADEA00B69064F40C54A /* LiToEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA246E5F875D69346ACE56E /* LiToEngine.swift */; };
+		05CE8F045EBEF9FE763C62C2 /* Safetensors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE9832875AA23EFA9703535 /* Safetensors.swift */; };
 		156B2055DAE661677DEFA759 /* Preprocess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E212768FD0F064477D0D8 /* Preprocess.swift */; };
 		1DBEF33938D6EF59AEA1FF56 /* SceneKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D2BE8459BCBF3767462C6F /* SceneKitView.swift */; };
 		26EFAFE44E270D0F45F87094 /* LiToKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -25,23 +26,31 @@
 		5FC86C62A96A8FA644854FC2 /* SapiensNormal.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6834324A46C15439B96598A /* SapiensNormal.swift */; };
 		6359BA004FF5469A1A1E2F05 /* LiToStudioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2319E61960EF499A15E57086 /* LiToStudioApp.swift */; };
 		68FB1CF49FAA7D6A6D90CF0D /* VoxelDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D60A63EB15D18C8C6985E2A /* VoxelDecoder.swift */; };
+		7064EA40A6511C8B08910BB8 /* CkptConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 029B8ECD021FC1D9D69F36DC /* CkptConverter.swift */; };
 		725AFFD0ABF55FCC18D18E56 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = F446A93E077AF89213467BC0 /* MLX */; };
 		76D2AADCEE9D9BB972320ABD /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = F3F66C28694B98A93B5BBDED /* MLXFast */; };
 		7791287D1F221F0647731123 /* Splat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1740A56A90DBB6A794F9D295 /* Splat.swift */; };
+		7A4F435D530D17096206722F /* WeightsInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3850CC75B2CF2157B88F300 /* WeightsInstaller.swift */; };
 		91D2710F67F426D031A2C0B3 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 3A20FA88AF14968C6350FFED /* MLXNN */; };
 		9EE3238AE0408E8E8EFC3E39 /* GaussianDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABBD753DAA1DA81ED35CAA17 /* GaussianDecoder.swift */; };
 		A7F0A483D434670B389E67A3 /* Parity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9400783481BE80B07723395A /* Parity.swift */; };
 		AE102BD1F8142185E2CBA6F1 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F767070956104EE6623E3138 /* AppModel.swift */; };
 		B0B3521E392D70EBF7DC1CC1 /* RMBG.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29B2B60CA077798F5C87812 /* RMBG.swift */; };
+		BD0E5D3C8F538AE35AE8DC35 /* LiToConvertCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2A5796AA41FB763801352EB3 /* LiToConvertCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BE1048DF8FD4DBE405AC3FFE /* MarchingCubesTables.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5552F9A76E22C32907560EA /* MarchingCubesTables.swift */; };
 		D22A756E3C58329B6EB56062 /* Upscaler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB944B113CB1963BD2BD67E9 /* Upscaler.swift */; };
 		D5BEE60CB44F6C5C6034FA7E /* SplatIO in Frameworks */ = {isa = PBXBuildFile; productRef = B753486D3D42AA79393F8351 /* SplatIO */; };
 		DD27C86A60962588E104D5F5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4C70AEC130CF33AC647BD0 /* Theme.swift */; };
+		DF06211E6DF6776501BC9EE5 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D575143379EC86DFF430966 /* SetupView.swift */; };
+		E4CDE7EAEAB6BBE2F8C55FB5 /* TorchZip.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA5A1C6BAC16232BAEECCF3 /* TorchZip.swift */; };
+		EB5A43A7B28D5FAB1F7126DE /* TorchUnpickler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2815B08916525DB6AAD8BC75 /* TorchUnpickler.swift */; };
 		EC8C3CC439E092065B463370 /* ImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3DD27612024AA5C1003C15D /* ImageAnalyzer.swift */; };
 		EFFE913D146979A15C810721 /* SplatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BED85D4F8BB9553372D4179 /* SplatView.swift */; };
 		F08D2F9108CB2DC502A52A8C /* Attn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C619A96D2246BB6E6372D9 /* Attn.swift */; };
 		F0B86D2AF7C9154043F6ADAD /* LiToKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */; };
 		F9EBFA1052C141B159BD6BDB /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C12F9FAAD89C25D6F185666 /* ContentView.swift */; };
+		FC4D396A114C3216FAB5A8F9 /* LiToConvertCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A5796AA41FB763801352EB3 /* LiToConvertCore.framework */; };
+		FCA0C999159C1CFEA4C95988 /* WeightsDownload.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD071C48365C625B0ABB01DC /* WeightsDownload.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +60,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 83F6C7A6FB62B4DBEF754A55;
 			remoteInfo = LiToKit;
+		};
+		4BF318F11902202DC01D8AFE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 745ADDD6486A65992DCB01CB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 12416067716B45CE04A6F8A7;
+			remoteInfo = LiToConvertCore;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -62,6 +78,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				26EFAFE44E270D0F45F87094 /* LiToKit.framework in Embed Frameworks */,
+				BD0E5D3C8F538AE35AE8DC35 /* LiToConvertCore.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -69,11 +86,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		029B8ECD021FC1D9D69F36DC /* CkptConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CkptConverter.swift; sourceTree = "<group>"; };
 		1740A56A90DBB6A794F9D295 /* Splat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Splat.swift; sourceTree = "<group>"; };
 		1A4C70AEC130CF33AC647BD0 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		2319E61960EF499A15E57086 /* LiToStudioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiToStudioApp.swift; sourceTree = "<group>"; };
+		2815B08916525DB6AAD8BC75 /* TorchUnpickler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TorchUnpickler.swift; sourceTree = "<group>"; };
+		2A5796AA41FB763801352EB3 /* LiToConvertCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LiToConvertCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A951581951BC2C23CC65233 /* Smoke.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Smoke.swift; sourceTree = "<group>"; };
 		2D24C584FD257A058ACEF16F /* LiToStudio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiToStudio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D575143379EC86DFF430966 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		42D2BE8459BCBF3767462C6F /* SceneKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneKitView.swift; sourceTree = "<group>"; };
 		4BA246E5F875D69346ACE56E /* LiToEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiToEngine.swift; sourceTree = "<group>"; };
 		4C12F9FAAD89C25D6F185666 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -90,14 +111,18 @@
 		A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LiToKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A29B2B60CA077798F5C87812 /* RMBG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RMBG.swift; sourceTree = "<group>"; };
 		ABBD753DAA1DA81ED35CAA17 /* GaussianDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaussianDecoder.swift; sourceTree = "<group>"; };
+		AD071C48365C625B0ABB01DC /* WeightsDownload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightsDownload.swift; sourceTree = "<group>"; };
 		B06E212768FD0F064477D0D8 /* Preprocess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preprocess.swift; sourceTree = "<group>"; };
 		B5552F9A76E22C32907560EA /* MarchingCubesTables.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarchingCubesTables.swift; sourceTree = "<group>"; };
+		BFA5A1C6BAC16232BAEECCF3 /* TorchZip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TorchZip.swift; sourceTree = "<group>"; };
+		C3850CC75B2CF2157B88F300 /* WeightsInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightsInstaller.swift; sourceTree = "<group>"; };
 		C6834324A46C15439B96598A /* SapiensNormal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SapiensNormal.swift; sourceTree = "<group>"; };
 		D3DD27612024AA5C1003C15D /* ImageAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageAnalyzer.swift; sourceTree = "<group>"; };
 		E6F3908713CE12C21743D3E6 /* Trellis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trellis.swift; sourceTree = "<group>"; };
 		ECEF2552728B4C77884ECC59 /* Nn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Nn.swift; sourceTree = "<group>"; };
 		F2C8193E76491B64568D1E41 /* MeshExtract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshExtract.swift; sourceTree = "<group>"; };
 		F767070956104EE6623E3138 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		FAE9832875AA23EFA9703535 /* Safetensors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Safetensors.swift; sourceTree = "<group>"; };
 		FB944B113CB1963BD2BD67E9 /* Upscaler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Upscaler.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -118,6 +143,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F0B86D2AF7C9154043F6ADAD /* LiToKit.framework in Frameworks */,
+				FC4D396A114C3216FAB5A8F9 /* LiToConvertCore.framework in Frameworks */,
 				4692286050E6760A111CF5FE /* MetalSplatter in Frameworks */,
 				D5BEE60CB44F6C5C6034FA7E /* SplatIO in Frameworks */,
 			);
@@ -129,6 +155,7 @@
 		07BCD8627FBB225E891437F3 = {
 			isa = PBXGroup;
 			children = (
+				B4564D34ABE9336280A3930E /* LiToConvertCore */,
 				0BD5533554326E353023CCAC /* LiToKit */,
 				D0B1ECDE01A847C03E615DAB /* LiToStudio */,
 				124FF01EA978B0F03FFD4962 /* Products */,
@@ -166,6 +193,7 @@
 		124FF01EA978B0F03FFD4962 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				2A5796AA41FB763801352EB3 /* LiToConvertCore.framework */,
 				A1E663BA1E47FBAA9C8B4DF0 /* LiToKit.framework */,
 				2D24C584FD257A058ACEF16F /* LiToStudio.app */,
 			);
@@ -178,6 +206,7 @@
 				F767070956104EE6623E3138 /* AppModel.swift */,
 				9C3F525618466DD630D0A20B /* PipelineRunner.swift */,
 				1A4C70AEC130CF33AC647BD0 /* Theme.swift */,
+				C3850CC75B2CF2157B88F300 /* WeightsInstaller.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -187,9 +216,23 @@
 			children = (
 				4C12F9FAAD89C25D6F185666 /* ContentView.swift */,
 				42D2BE8459BCBF3767462C6F /* SceneKitView.swift */,
+				3D575143379EC86DFF430966 /* SetupView.swift */,
 				9BED85D4F8BB9553372D4179 /* SplatView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		B4564D34ABE9336280A3930E /* LiToConvertCore */ = {
+			isa = PBXGroup;
+			children = (
+				029B8ECD021FC1D9D69F36DC /* CkptConverter.swift */,
+				FAE9832875AA23EFA9703535 /* Safetensors.swift */,
+				2815B08916525DB6AAD8BC75 /* TorchUnpickler.swift */,
+				BFA5A1C6BAC16232BAEECCF3 /* TorchZip.swift */,
+				AD071C48365C625B0ABB01DC /* WeightsDownload.swift */,
+			);
+			name = LiToConvertCore;
+			path = Sources/LiToConvertCore;
 			sourceTree = "<group>";
 		};
 		D0B1ECDE01A847C03E615DAB /* LiToStudio */ = {
@@ -207,6 +250,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		12416067716B45CE04A6F8A7 /* LiToConvertCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 50E44BB7678297C1BCFFDF2C /* Build configuration list for PBXNativeTarget "LiToConvertCore" */;
+			buildPhases = (
+				1B05F440EC842DA40507A7FE /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LiToConvertCore;
+			packageProductDependencies = (
+			);
+			productName = LiToConvertCore;
+			productReference = 2A5796AA41FB763801352EB3 /* LiToConvertCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		83F6C7A6FB62B4DBEF754A55 /* LiToKit */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3920BFFCC7923EA41B711FFE /* Build configuration list for PBXNativeTarget "LiToKit" */;
@@ -242,6 +302,7 @@
 			);
 			dependencies = (
 				ED4504AE359413DBA246634A /* PBXTargetDependency */,
+				D7DB065DFEC6A1674C2278B7 /* PBXTargetDependency */,
 			);
 			name = LiToStudio;
 			packageProductDependencies = (
@@ -281,6 +342,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				12416067716B45CE04A6F8A7 /* LiToConvertCore */,
 				83F6C7A6FB62B4DBEF754A55 /* LiToKit */,
 				EE8D1BC4C58B67ECB3CBE3FC /* LiToStudio */,
 			);
@@ -305,11 +367,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n# MLX loads its Metal shaders from `mlx.metallib` next to the executable.\nMLIB=\"$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/mlx.metallib\"\ncp -f \"$SRCROOT/weights/mlx.metallib\" \"$MLIB\"\n# It sits in Contents/MacOS, so the app's CodeSign step treats it as a nested\n# code object — pre-sign it here or the final codesign fails.\ncodesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" \"$MLIB\"\n# Expose the (large) checkout weights via a symlink in Resources — no copy.\nln -sfn \"$SRCROOT/weights\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/weights\"\n";
+			shellScript = "set -e\n# MLX loads its Metal shaders from `mlx.metallib` next to the executable.\n# Missing on a fresh clone is fine: first-run setup downloads it and the\n# app colocates it itself before the engine starts.\nif [ -f \"$SRCROOT/weights/mlx.metallib\" ]; then\n  MLIB=\"$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/mlx.metallib\"\n  cp -f \"$SRCROOT/weights/mlx.metallib\" \"$MLIB\"\n  # It sits in Contents/MacOS, so the app's CodeSign step treats it as a nested\n  # code object — pre-sign it here or the final codesign fails.\n  codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" \"$MLIB\"\nfi\n# Expose the (large) checkout weights via a symlink in Resources — no copy.\nln -sfn \"$SRCROOT/weights\" \"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/weights\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1B05F440EC842DA40507A7FE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7064EA40A6511C8B08910BB8 /* CkptConverter.swift in Sources */,
+				05CE8F045EBEF9FE763C62C2 /* Safetensors.swift in Sources */,
+				EB5A43A7B28D5FAB1F7126DE /* TorchUnpickler.swift in Sources */,
+				E4CDE7EAEAB6BBE2F8C55FB5 /* TorchZip.swift in Sources */,
+				FCA0C999159C1CFEA4C95988 /* WeightsDownload.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		63EF0696928DEDA842AA7BEC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -346,14 +420,21 @@
 				6359BA004FF5469A1A1E2F05 /* LiToStudioApp.swift in Sources */,
 				3C5B987DC2D510DE2916D797 /* PipelineRunner.swift in Sources */,
 				1DBEF33938D6EF59AEA1FF56 /* SceneKitView.swift in Sources */,
+				DF06211E6DF6776501BC9EE5 /* SetupView.swift in Sources */,
 				EFFE913D146979A15C810721 /* SplatView.swift in Sources */,
 				DD27C86A60962588E104D5F5 /* Theme.swift in Sources */,
+				7A4F435D530D17096206722F /* WeightsInstaller.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		D7DB065DFEC6A1674C2278B7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 12416067716B45CE04A6F8A7 /* LiToConvertCore */;
+			targetProxy = 4BF318F11902202DC01D8AFE /* PBXContainerItemProxy */;
+		};
 		ED4504AE359413DBA246634A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 83F6C7A6FB62B4DBEF754A55 /* LiToKit */;
@@ -491,6 +572,30 @@
 			};
 			name = Debug;
 		};
+		96D647625EF85DB43B6CD318 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.litostudio.litoconvertcore;
+				PRODUCT_NAME = LiToConvertCore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
 		C8A84D2879D9F9722E094851 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -573,6 +678,30 @@
 			};
 			name = Release;
 		};
+		F6D150272EB6D736052AD5F9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.litostudio.litoconvertcore;
+				PRODUCT_NAME = LiToConvertCore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -599,6 +728,15 @@
 			buildConfigurations = (
 				4B204C58AC967C7CD60AD704 /* Debug */,
 				30405FB7973DB09E95EB6F64 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		50E44BB7678297C1BCFFDF2C /* Build configuration list for PBXNativeTarget "LiToConvertCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F6D150272EB6D736052AD5F9 /* Debug */,
+				96D647625EF85DB43B6CD318 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

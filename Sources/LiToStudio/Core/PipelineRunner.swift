@@ -63,7 +63,7 @@ enum Config {
             try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir
         }
-        for c in weightsCandidates().dropFirst(0) where c.lastPathComponent == "weights" {
+        for c in weightsCandidates() where c.lastPathComponent == "weights" {
             var isDir: ObjCBool = false
             let resolved = c.resolvingSymlinksInPath()
             if fm.fileExists(atPath: resolved.path, isDirectory: &isDir), isDir.boolValue,
