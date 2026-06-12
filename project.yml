@@ -32,6 +32,11 @@ schemes:
         LiToStudio: all
     run:
       config: Debug
+      # Silence macOS system-framework console spam (AppIntents/linkd XPC 4097
+      # registration noise — debug-signed apps can't register with Shortcuts;
+      # harmless). Our own pipeline logs go through stdout, which is unaffected.
+      environmentVariables:
+        OS_ACTIVITY_MODE: disable
 
 targets:
   LiToConvertCore:

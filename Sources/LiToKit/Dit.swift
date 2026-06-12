@@ -6,6 +6,11 @@ import MLXFast
 /// Stage 3 — the flow-matching DiT (velocity model), a port of the MLX-Python
 /// `DiffusionTransformer` (`src/lito/mlx/models/dit.py`) using the EMA weights.
 ///
+/// How multiple conditioning views are combined during sampling (see `DiT.sample`).
+public enum MultiViewMode: String, CaseIterable, Sendable {
+    case multidiffusion, stochastic, concat
+}
+
 /// 28 PixArt-style adaLN blocks (self-attn + cross-attn + SwiGLU MLP), RMSNorm on
 /// q/k, FourierEmbed timestep conditioning. Outputs the velocity dx/dt directly
 /// (linear flow path), integrated by Heun in `sample`.
@@ -121,21 +126,59 @@ public struct DiT {
     public func sample(x0: MLXArray, ts: [Float], cond: MLXArray, cfgScale: Float = 1.0,
                        onStep: ((Int, Int) -> Void)? = nil,
                        onStepSample: ((Int, Int, MLXArray) -> Void)? = nil) -> MLXArray {
+        sample(x0: x0, ts: ts, conds: [cond], cfgScale: cfgScale,
+               onStep: onStep, onStepSample: onStepSample)
+    }
+
+    /// Multi-image conditioned sampling (same subject, different angles — the TRELLIS
+    /// `run_multi_image` idea). Conditioning is pose-free, so this is purely a
+    /// sampling-time change:
+    ///   • `.multidiffusion` — average the conditional velocities over all views each
+    ///     half-step. CFG is applied once to the mean (linearity makes that identical to
+    ///     averaging per-view guided velocities), so the uncond eval stays single: cost
+    ///     is N+1 forwards per half-step vs 2 for one view. Best geometry.
+    ///   • `.stochastic` — round-robin one view per half-step. Single-view cost, noisier.
+    ///   • `.concat` — cross-attend all views' tokens at once (m = N·1374). Single pass;
+    ///     off-distribution for the single-image-trained DiT but cheap, and the right
+    ///     mode once the fine-tune trains with multi-view concat conditioning.
+    public func sample(x0: MLXArray, ts: [Float], conds condsIn: [MLXArray], cfgScale: Float = 1.0,
+                       mode: MultiViewMode = .multidiffusion,
+                       onStep: ((Int, Int) -> Void)? = nil,
+                       onStepSample: ((Int, Int, MLXArray) -> Void)? = nil) -> MLXArray {
+        precondition(!condsIn.isEmpty, "need at least one conditioning view")
+        let conds = mode == .concat && condsIn.count > 1
+            ? [concatenated(condsIn, axis: 1)] : condsIn
         let b = x0.dim(0)
         let useCFG = cfgScale > 1.0
+        // Uncond tokens are all the same learned embedding, so cross-attention over them
+        // is invariant to token count — any m works; use the first view's.
         let negCond: MLXArray? = useCFG
-            ? broadcast(w("cond_embedder.y_embedding").reshaped([1, 1, cond.dim(2)]),
-                        to: [cond.dim(0), cond.dim(1), cond.dim(2)]).asType(cond.dtype)
+            ? broadcast(w("cond_embedder.y_embedding").reshaped([1, 1, conds[0].dim(2)]),
+                        to: [conds[0].dim(0), conds[0].dim(1), conds[0].dim(2)]).asType(conds[0].dtype)
             : nil
         // Evaluate each forward pass before building the next so only ONE DiT
         // forward's activations are live at a time. Without this the lazy graph for
-        // all four forwards in a Heun step (cond+uncond × predictor+corrector) is
-        // held until the step's final eval — ~2× the no-CFG peak, which OOM-kills a
-        // 16 GB machine mid-sampling.
-        func vel(_ tv: Float, _ x: MLXArray) -> MLXArray {
+        // all forwards in a Heun step (N cond + uncond × predictor + corrector) is
+        // held until the step's final eval — multiples of the no-CFG peak, which
+        // OOM-kills a 16 GB machine mid-sampling.
+        func vel(_ tv: Float, _ x: MLXArray, step: Int, half: Int) -> MLXArray {
             let t = MLXArray([Float](repeating: tv, count: b))
-            let vc = self(tokens: x, t: t, cond: cond).asType(.float32)
-            vc.eval()
+            var vc: MLXArray
+            if mode == .stochastic && conds.count > 1 {
+                let pick = (step * 2 + half) % conds.count
+                vc = self(tokens: x, t: t, cond: conds[pick]).asType(.float32)
+                vc.eval()
+            } else {
+                vc = self(tokens: x, t: t, cond: conds[0]).asType(.float32)
+                vc.eval()
+                for c in conds.dropFirst() {
+                    let v = self(tokens: x, t: t, cond: c).asType(.float32)
+                    v.eval()
+                    vc = vc + v
+                    vc.eval()
+                }
+                if conds.count > 1 { vc = vc / Float(conds.count); vc.eval() }
+            }
             guard let neg = negCond else { return vc }
             let vu = self(tokens: x, t: t, cond: neg).asType(.float32)
             vu.eval()
@@ -147,9 +190,9 @@ public struct DiT {
         let n = ts.count - 1
         for i in 0 ..< n {
             let h = ts[i + 1] - ts[i]
-            let d0 = vel(ts[i], x)
+            let d0 = vel(ts[i], x, step: i, half: 0)
             let xMid = x + h * d0; xMid.eval()
-            let d1 = vel(ts[i + 1], xMid)
+            let d1 = vel(ts[i + 1], xMid, step: i, half: 1)
             x = x + (h * 0.5) * (d0 + d1)
             x.eval()
             Memory.clearCache()

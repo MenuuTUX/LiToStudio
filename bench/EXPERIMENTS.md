@@ -15,3 +15,8 @@ What to compare per photo:
 |---|---|---|---|---|
 | 2026-06-10 | Baseline (pre-Sapiens) | main @ 6295a5e+wip | — (reference) | running |
 | | Sapiens2 normal refinement (pending .mlpackage) | | | |
+| 2026-06-11 | Multi-view conditioning + photo texture (docs/MULTIVIEW.md) | wip | pending weights re-download; single-image path unchanged by construction (wrapper) | untested vs baseline |
+
+Multi-view protocol addition: condition on N−1 views, score silhouette IoU against the
+held-out view (`LiToSmoke engine weights "v1.png,v2.png,…"` prints per-view yaw/IoU).
+Compare multidiffusion vs stochastic vs concat at matched wall-clock.

@@ -28,9 +28,13 @@ struct PipelinePreview: Identifiable, Equatable {
 @MainActor
 @Observable
 final class AppModel {
-    var inputImageURL: URL?
+    /// One image = classic path. Several images (or one contact sheet, which the
+    /// pipeline splits automatically) = multi-view conditioning of a single shape.
+    var inputImageURLs: [URL] = []
+    var inputImageURL: URL? { inputImageURLs.first }
 
     var mode: GenMode = .objectSplat
+    var multiViewMode: MultiViewMode = .multidiffusion
     var samplingSteps: Double = 20         // Heun ODE steps (reference default 20; more = better geometry)
     var cfgScale: Double = 3.0             // classifier-free guidance scale; 1 = off, 3 = reference default
     var useRMBG: Bool = true               // RMBG 2.0 CoreML background removal (better than Vision)
@@ -52,24 +56,36 @@ final class AppModel {
     var liveCloudGen = 0                   // bumped per update so the view knows to refresh
 
     var isRunning: Bool { if case .running = phase { return true }; return false }
-    var canGenerate: Bool { inputImageURL != nil && !isRunning }
+    var canGenerate: Bool { !inputImageURLs.isEmpty && !isRunning }
 
-    var autoSettings: Bool = true
+    /// Re-runs the analysis the moment the toggle flips on (not just at image pick).
+    var autoSettings: Bool = true {
+        didSet { if autoSettings, !oldValue { applyRecommendedSettings() } }
+    }
+    /// The last image analysis — drives the "default → detected" panel in settings.
+    private(set) var analysis: ImageAnalyzer.Analysis?
 
-    func pickImage(_ url: URL) {
-        inputImageURL = url; phase = .idle; resultURL = nil; splatURL = nil; meshURL = nil
+    func pickImage(_ url: URL) { pickImages([url]) }
+
+    func pickImages(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        inputImageURLs = urls; phase = .idle; resultURL = nil; splatURL = nil; meshURL = nil
         log = []; previews = []
-        if autoSettings { applyRecommendedSettings(for: url) }
+        analysis = nil
+        if autoSettings { applyRecommendedSettings() }
     }
 
-    private func applyRecommendedSettings(for url: URL) {
-        let rec = ImageAnalyzer.recommend(imageURL: url)
-        samplingSteps = rec.samplingSteps
-        cfgScale = rec.cfgScale
-        useRMBG = rec.useRMBG
-        useUpscaler = rec.useUpscaler
-        occupancyThreshold = rec.occupancyThreshold
-        opacityThreshold = rec.opacityThreshold
+    private func applyRecommendedSettings() {
+        guard !inputImageURLs.isEmpty else { return }
+        let a = ImageAnalyzer.analyze(imageURLs: inputImageURLs)
+        analysis = a
+        samplingSteps = a.settings.samplingSteps
+        cfgScale = a.settings.cfgScale
+        useRMBG = a.settings.useRMBG
+        useUpscaler = a.settings.useUpscaler
+        occupancyThreshold = a.settings.occupancyThreshold
+        opacityThreshold = a.settings.opacityThreshold
+        seedCandidates = a.settings.seedCandidates
     }
     /// Show an existing model file in the viewer (manual open).
     /// 3DGS gaussian PLYs (our `_gs.ply` exports or any INRIA-format file) go to the
@@ -94,7 +110,7 @@ final class AppModel {
     private var task: Task<Void, Never>?
 
     func generate() {
-        guard canGenerate, let img = inputImageURL else { return }
+        guard canGenerate else { return }
         guard Config.ready else {
             phase = .failed("Model weights not found at \(Config.weightsDir.path)")
             return
@@ -108,8 +124,9 @@ final class AppModel {
         liveCloud = []
         liveCloudGen = 0
 
-        let args = PipelineArgs(imagePath: img.path, steps: Int(samplingSteps),
+        let args = PipelineArgs(imagePaths: inputImageURLs.map(\.path), steps: Int(samplingSteps),
                                 cfgScale: Float(cfgScale),
+                                multiView: multiViewMode,
                                 useRMBG: useRMBG, useUpscaler: useUpscaler,
                                 occupancyThreshold: Float(occupancyThreshold),
                                 opacityThreshold: Float(opacityThreshold),

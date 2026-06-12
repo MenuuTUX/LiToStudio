@@ -71,5 +71,8 @@ case "$SUB" in
     exec "$BIN/LiToSmoke" sculpt weights "$IMG" "$OUT" "$STEPS" "$CFG" "$SEED" "$BESTOF" "$MESHRES" ;;
   *)
     echo "▶ Launching LiTo Studio…"
+    # Silence AppIntents/linkd registration noise (debug builds can't register
+    # with Shortcuts; harmless XPC 4097 errors). Pipeline logs use stdout.
+    export OS_ACTIVITY_MODE=disable
     exec "$BIN/LiToStudio" ;;
 esac

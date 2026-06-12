@@ -124,9 +124,19 @@ enum RunEvent: Sendable {
 }
 
 struct PipelineArgs: Sendable {
-    var imagePath: String
+    /// One image = the reference path. Several images of the same subject from
+    /// different angles condition one shape together. A single image that turns out
+    /// to be a contact sheet (several figures on a uniform background) is split
+    /// automatically when `splitSheet` is on.
+    var imagePaths: [String]
     var steps: Int
     var cfgScale: Float = 3.0
+    var multiView: MultiViewMode = .multidiffusion
+    var splitSheet: Bool = true
+    /// Replace generated splat/mesh colors with colors backprojected from the photos
+    /// (the photos carry far more texture detail than the 64³-latent generation).
+    /// Applies when ≥2 views are available.
+    var photoTexture: Bool = true
     var useRMBG: Bool = true
     var useUpscaler: Bool = true
     var occupancyThreshold: Float = 0
@@ -145,79 +155,111 @@ private let engineLock = NSLock()
 func runPipeline(_ args: PipelineArgs) -> AsyncStream<RunEvent> {
     AsyncStream(bufferingPolicy: .unbounded) { continuation in
         let thread = Thread {
-            // Emit the original input as the first preview
-            var workingImageURL = URL(filePath: args.imagePath)
+            guard !args.imagePaths.isEmpty else {
+                continuation.yield(.failed("No input image")); continuation.finish(); return
+            }
+            var inputURLs = args.imagePaths.map { URL(filePath: $0) }
             var tempFiles = [URL]()
-            continuation.yield(.preview(label: "Input", imageURL: workingImageURL))
+            let stamp = Int(Date().timeIntervalSince1970)
+            continuation.yield(.preview(label: "Input", imageURL: inputURLs[0]))
 
-            // Phase 0a0: Low-light normalization (auto — night shots starve DINOv2)
-            if let cg = Preprocess.loadCGImageUpright(workingImageURL) {
-                let lum = Preprocess.meanLuminance(cg)
-                if lum < 0.27, let fixed = Preprocess.normalizeLowLight(cg) {
-                    let tmp = FileManager.default.temporaryDirectory.appending(path: "lito_lowlight_\(Int(Date().timeIntervalSince1970)).png")
-                    if (try? writeCGImage(fixed, to: tmp)) != nil {
-                        workingImageURL = tmp
+            // Phase 0: contact-sheet split — one dropped image that contains several
+            // renders of the subject (AI-generated turnaround) becomes N view images.
+            if args.splitSheet, inputURLs.count == 1 {
+                if sharedRMBG == nil, args.useRMBG, Config.rmbgReady {
+                    sharedRMBG = try? RMBG(modelURL: Config.rmbgModelURL)
+                }
+                let splitDir = FileManager.default.temporaryDirectory.appending(path: "lito_sheet_\(stamp)")
+                if let views = try? SheetSplit.splitToFiles(
+                    imageURL: inputURLs[0], rmbg: sharedRMBG, outDir: splitDir,
+                    log: { continuation.yield(.line("[Sheet] \($0)")) }) {
+                    inputURLs = views
+                    tempFiles += views
+                    tempFiles.append(splitDir)
+                    for (i, v) in views.enumerated() {
+                        continuation.yield(.preview(label: "View \(i + 1)", imageURL: v))
+                    }
+                    continuation.yield(.line("[Sheet] contact sheet split into \(views.count) views"))
+                }
+            }
+
+            // Phases 0a–0c per view: low-light, upscale, background removal.
+            let nViews = inputURLs.count
+            var workingURLs = inputURLs
+            var preRGBAs = [URL?](repeating: nil, count: nViews)
+            for v in 0 ..< nViews {
+                let vtag = nViews > 1 ? " — view \(v + 1)/\(nViews)" : ""
+                let vfile = nViews > 1 ? "v\(v + 1)_" : ""
+
+                // Phase 0a0: Low-light normalization (auto — night shots starve DINOv2)
+                if let cg = Preprocess.loadCGImageUpright(workingURLs[v]) {
+                    let lum = Preprocess.meanLuminance(cg)
+                    if lum < 0.27, let fixed = Preprocess.normalizeLowLight(cg) {
+                        let tmp = FileManager.default.temporaryDirectory.appending(path: "lito_lowlight_\(vfile)\(stamp).png")
+                        if (try? writeCGImage(fixed, to: tmp)) != nil {
+                            workingURLs[v] = tmp
+                            tempFiles.append(tmp)
+                            continuation.yield(.preview(label: "Low-light normalized", imageURL: tmp))
+                            continuation.yield(.line(String(format: "[LowLight]%@ mean luminance %.2f → normalized", vtag, lum)))
+                        }
+                    }
+                }
+
+                // Phase 0a: Upscale (if model available)
+                if args.useUpscaler, let upscalerURL = Config.upscalerModelURL {
+                    do {
+                        continuation.yield(.progress(stage: "Upscaling (Real-ESRGAN 4x)\(vtag)…",
+                                                     fraction: 0.01 + 0.02 * Double(v) / Double(nViews)))
+                        if sharedUpscaler == nil {
+                            sharedUpscaler = try Upscaler(modelURL: upscalerURL)
+                        }
+                        guard let cg = Preprocess.loadCGImageUpright(workingURLs[v]) else {
+                            throw Upscaler.UpscalerError.image
+                        }
+                        let upscaled = try sharedUpscaler!.upscaleToMax(cg, maxDim: 4096)
+                        let tmp = FileManager.default.temporaryDirectory.appending(path: "lito_upscaled_\(vfile)\(stamp).png")
+                        try writeCGImage(upscaled, to: tmp)
+                        workingURLs[v] = tmp
                         tempFiles.append(tmp)
-                        continuation.yield(.preview(label: "Low-light normalized", imageURL: tmp))
-                        continuation.yield(.line(String(format: "[LowLight] mean luminance %.2f → normalized", lum)))
+                        continuation.yield(.preview(label: "Upscaled (\(upscaled.width)×\(upscaled.height))", imageURL: tmp))
+                        continuation.yield(.line("[Upscaler]\(vtag) 4x → \(upscaled.width)×\(upscaled.height)"))
+                    } catch {
+                        continuation.yield(.line("[Upscaler]\(vtag) skipped: \(error)"))
                     }
                 }
-            }
 
-            // Phase 0a: Upscale (if model available)
-
-            if args.useUpscaler, let upscalerURL = Config.upscalerModelURL {
-                do {
-                    continuation.yield(.progress(stage: "Upscaling (Real-ESRGAN 4x)…", fraction: 0.01))
-                    if sharedUpscaler == nil {
-                        sharedUpscaler = try Upscaler(modelURL: upscalerURL)
+                // Phase 0b: Background removal (RMBG 2.0 via CoreML)
+                if args.useRMBG && Config.rmbgReady {
+                    do {
+                        continuation.yield(.progress(stage: "Background removal (RMBG 2.0)\(vtag)…",
+                                                     fraction: 0.03 + 0.02 * Double(v) / Double(nViews)))
+                        if sharedRMBG == nil {
+                            sharedRMBG = try RMBG(modelURL: Config.rmbgModelURL)
+                        }
+                        guard let cg = Preprocess.loadCGImageUpright(workingURLs[v]) else {
+                            throw RMBG.RMBGError.compile
+                        }
+                        var rgba = try sharedRMBG!.removeBackground(from: cg)
+                        // Trim the cutout to Vision's person mask (dilated) — drops mirror
+                        // frames / furniture that RMBG keeps because they touch the subject.
+                        if let trimmed = Preprocess.personTrim(rgba: rgba, original: cg) {
+                            rgba = trimmed
+                            continuation.yield(.line("[PersonTrim]\(vtag) cutout trimmed to person mask"))
+                        }
+                        let tmp = FileManager.default.temporaryDirectory.appending(path: "lito_rmbg_\(vfile)\(stamp).png")
+                        try writeCGImage(rgba, to: tmp)
+                        preRGBAs[v] = tmp
+                        tempFiles.append(tmp)
+                        continuation.yield(.preview(label: nViews > 1 ? "View \(v + 1) cutout" : "Background Removed", imageURL: tmp))
+                        continuation.yield(.line("[RMBG]\(vtag) background removed"))
+                    } catch {
+                        continuation.yield(.line("[RMBG]\(vtag) skipped: \(error) — using Vision fallback"))
                     }
-                    guard let cg = Preprocess.loadCGImageUpright(workingImageURL) else {
-                        throw Upscaler.UpscalerError.image
-                    }
-                    let upscaled = try sharedUpscaler!.upscaleToMax(cg, maxDim: 4096)
-                    let tmp = FileManager.default.temporaryDirectory.appending(path: "lito_upscaled_\(Int(Date().timeIntervalSince1970)).png")
-                    try writeCGImage(upscaled, to: tmp)
-                    workingImageURL = tmp
-                    tempFiles.append(tmp)
-                    continuation.yield(.preview(label: "Upscaled (\(upscaled.width)×\(upscaled.height))", imageURL: tmp))
-                    continuation.yield(.line("[Upscaler] 4x → \(upscaled.width)×\(upscaled.height)"))
-                } catch {
-                    continuation.yield(.line("[Upscaler] skipped: \(error)"))
-                }
-            }
-
-            // Phase 0b: Background removal (RMBG 2.0 via CoreML)
-            var preprocessedRGBA: URL?
-            if args.useRMBG && Config.rmbgReady {
-                do {
-                    continuation.yield(.progress(stage: "Background removal (RMBG 2.0)…", fraction: 0.03))
-                    if sharedRMBG == nil {
-                        sharedRMBG = try RMBG(modelURL: Config.rmbgModelURL)
-                    }
-                    guard let cg = Preprocess.loadCGImageUpright(workingImageURL) else {
-                        throw RMBG.RMBGError.compile
-                    }
-                    var rgba = try sharedRMBG!.removeBackground(from: cg)
-                    // Trim the cutout to Vision's person mask (dilated) — drops mirror
-                    // frames / furniture that RMBG keeps because they touch the subject.
-                    if let trimmed = Preprocess.personTrim(rgba: rgba, original: cg) {
-                        rgba = trimmed
-                        continuation.yield(.line("[PersonTrim] cutout trimmed to person mask"))
-                    }
-                    let tmp = FileManager.default.temporaryDirectory.appending(path: "lito_rmbg_\(Int(Date().timeIntervalSince1970)).png")
-                    try writeCGImage(rgba, to: tmp)
-                    preprocessedRGBA = tmp
-                    tempFiles.append(tmp)
-                    continuation.yield(.preview(label: "Background Removed", imageURL: tmp))
-                    continuation.yield(.line("[RMBG] background removed"))
-                } catch {
-                    continuation.yield(.line("[RMBG] skipped: \(error) — using Vision fallback"))
                 }
             }
 
             // Phase 0c: Emit the condRGBA preview (the actual 518² input to DINOv2)
-            if let rgba = preprocessedRGBA {
+            if nViews == 1, let rgba = preRGBAs[0] {
                 continuation.yield(.preview(label: "DINOv2 Input (518²)", imageURL: rgba))
             }
 
@@ -237,27 +279,53 @@ func runPipeline(_ args: PipelineArgs) -> AsyncStream<RunEvent> {
                 continuation.yield(.failed("Failed to load model: \(error)")); continuation.finish(); return
             }
             do {
-                let stem = URL(filePath: args.imagePath).deletingPathExtension().lastPathComponent
+                let stem = URL(filePath: args.imagePaths[0]).deletingPathExtension().lastPathComponent
                 let safe = String(stem.prefix(40).map { $0.isLetter || $0.isNumber ? $0 : "_" })
-                let base = "\(safe.isEmpty ? "img" : safe)_\(Int(Date().timeIntervalSince1970))"
+                let base = "\(safe.isEmpty ? "img" : safe)_\(stamp)"
                 let out = Config.outputDir.appending(path: "\(base)_pc.ply")
                 let outSplat = Config.outputDir.appending(path: "\(base)_gs.ply")
-                let n = try engine.generate(imageURL: workingImageURL, steps: args.steps,
-                                            outPLY: out, preprocessedRGBA: preprocessedRGBA,
-                                            cfgScale: args.cfgScale,
-                                            occupancyThreshold: args.occupancyThreshold,
-                                            opacityThreshold: args.opacityThreshold,
-                                            seed: args.seed,
-                                            seedCandidates: args.seedCandidates,
-                                            outSplatPLY: outSplat,
-                                            progress: { frac, stage in
+                let gen = try engine.generate(imageURLs: workingURLs, steps: args.steps,
+                                              outPLY: out, preprocessedRGBAs: preRGBAs,
+                                              cfgScale: args.cfgScale,
+                                              multiViewMode: args.multiView,
+                                              occupancyThreshold: args.occupancyThreshold,
+                                              opacityThreshold: args.opacityThreshold,
+                                              seed: args.seed,
+                                              seedCandidates: args.seedCandidates,
+                                              outSplatPLY: outSplat,
+                                              progress: { frac, stage in
                     continuation.yield(.progress(stage: stage, fraction: frac))
                 }, onStepPreview: { done, total in
                     continuation.yield(.line("[DiT] step \(done)/\(total) complete"))
                 }, onStepCloud: { points, step, total in
                     continuation.yield(.cloud(points: points, step: step, total: total))
                 })
-                continuation.yield(.line("Wrote \(n) colored points → \(out.lastPathComponent) + gaussian splat → \(outSplat.lastPathComponent)"))
+                continuation.yield(.line("Wrote \(gen.pointCount) colored points → \(out.lastPathComponent) + gaussian splat → \(outSplat.lastPathComponent)"))
+
+                // HD photo texture: backproject every view's pixels onto the splat —
+                // measured colors beat generated ones. Needs ≥2 views (with one view
+                // the generated colors already came from exactly that angle).
+                var textureViews = [TextureProject.View]()
+                if args.photoTexture, nViews > 1 {
+                    for v in 0 ..< nViews {
+                        guard let rgba = preRGBAs[v] else { continue }
+                        textureViews.append(TextureProject.View(rgbaURL: rgba,
+                                                                yaw: gen.viewYaws[v],
+                                                                weight: max(0.05, gen.viewIoUs[v])))
+                    }
+                }
+                if !textureViews.isEmpty {
+                    continuation.yield(.progress(stage: "Backprojecting photo texture (\(textureViews.count) views)…", fraction: 0.975))
+                    do {
+                        let n = try TextureProject.recolorSplatPLY(at: outSplat, views: textureViews) {
+                            continuation.yield(.line("[texture] \($0)"))
+                        }
+                        _ = try? TextureProject.recolorPointCloudPLY(at: out, views: textureViews)
+                        continuation.yield(.line("[texture] recolored \(n) gaussians from \(textureViews.count) photos"))
+                    } catch {
+                        continuation.yield(.line("[texture] skipped: \(error)"))
+                    }
+                }
 
                 // Surface extraction: marching cubes over the gaussian density field.
                 var outMesh: URL?
@@ -271,7 +339,7 @@ func runPipeline(_ args: PipelineArgs) -> AsyncStream<RunEvent> {
                         }
                         // Sapiens photo refinement: re-sculpt the camera-facing surface
                         // against measured normals + snap the outline to the silhouette.
-                        if let sapiensURL = Config.sapiensModelURL, let rgba = preprocessedRGBA {
+                        if let sapiensURL = Config.sapiensModelURL, let rgba = preRGBAs[0] {
                             do {
                                 continuation.yield(.progress(stage: "Refining mesh (Sapiens normals)…", fraction: 0.995))
                                 let grid = 1024
@@ -290,6 +358,12 @@ func runPipeline(_ args: PipelineArgs) -> AsyncStream<RunEvent> {
                             } catch {
                                 continuation.yield(.line("[refine] skipped: \(error)"))
                             }
+                        }
+                        if !textureViews.isEmpty {
+                            let n = TextureProject.recolor(mesh: &mesh, views: textureViews) { msg in
+                                continuation.yield(.line("[texture] \(msg)"))
+                            }
+                            continuation.yield(.line("[texture] recolored \(n) mesh vertices"))
                         }
                         try MeshExtract.writePLY(mesh, to: meshURL)
                         try MeshExtract.writeOBJ(mesh, to: objURL)

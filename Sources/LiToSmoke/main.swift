@@ -40,52 +40,92 @@ func describeFeature(_ d: MLFeatureDescription) -> String {
         return "type(\(d.type.rawValue))"
     }
 }
-/// Shared photo → splat path for the `engine` and `sculpt` commands: RMBG cutout
-/// (with low-light + person-trim conditioning) when the model is present, then the
-/// full native engine. Returns the RGBA cutout URL so later stages (Sapiens normal
-/// refinement) can reuse the exact conditioning view.
+/// Shared photo(s) → splat path for the `engine` and `sculpt` commands: contact-sheet
+/// split (a single image holding several renders becomes N views), RMBG cutouts (with
+/// low-light + person-trim conditioning) when the model is present, then the full
+/// native engine with multi-view conditioning. Returns the RGBA cutout URLs and the
+/// per-view yaw/IoU estimates so later stages (Sapiens refinement, photo texture)
+/// can reuse the exact conditioning views.
 @discardableResult
-func runEngineCLI(weightsDir: URL, imagePath: String, outPLY: URL,
-                  steps: Int, cfg: Float, seed: UInt64?, bestOf: Int) throws -> (splat: URL, rgba: URL?) {
-    var preRGBA: URL?
-    var engineInput = URL(filePath: imagePath)
+func runEngineCLI(weightsDir: URL, imagePaths: [String], outPLY: URL,
+                  steps: Int, cfg: Float, seed: UInt64?, bestOf: Int,
+                  mode: MultiViewMode = .multidiffusion)
+    throws -> (splat: URL, rgbas: [URL?], yaws: [Float], ious: [Float]) {
     let rmbgURL = weightsDir.appending(path: "RMBG2.mlpackage")
-    if FileManager.default.fileExists(atPath: rmbgURL.path), var cg = loadCG(imagePath) {
+    let rmbg = FileManager.default.fileExists(atPath: rmbgURL.path)
+        ? try? RMBG(modelURL: rmbgURL) : nil
+
+    // One input that is actually a contact sheet → split into per-view crops.
+    var paths = imagePaths
+    if paths.count == 1 {
+        let splitDir = outPLY.deletingPathExtension().appendingPathExtension("views")
+        if let views = try? SheetSplit.splitToFiles(imageURL: URL(filePath: paths[0]), rmbg: rmbg,
+                                                    outDir: splitDir, log: { print("  [sheet] \($0)") }),
+           !views.isEmpty {
+            paths = views.map(\.path)
+            print("  [sheet] contact sheet → \(paths.count) views in \(splitDir.lastPathComponent)/")
+        }
+    }
+
+    var engineInputs = paths.map { URL(filePath: $0) }
+    var preRGBAs = [URL?](repeating: nil, count: paths.count)
+    for v in 0 ..< paths.count {
+        let vtag = paths.count > 1 ? " v\(v + 1)" : ""
+        guard let rmbg, var cg = loadCG(engineInputs[v].path) else {
+            if rmbg == nil { print("  [RMBG]\(vtag) model not found — using Vision foreground fallback") }
+            continue
+        }
         let lum = Preprocess.meanLuminance(cg)
         if lum < 0.27, let fixed = Preprocess.normalizeLowLight(cg) {
             cg = fixed
-            let tmp = outPLY.deletingPathExtension().appendingPathExtension("lowlight.png")
-            try writePNG(fixed, to: tmp); engineInput = tmp
-            print(String(format: "  [LowLight] mean luminance %.2f → normalized", lum))
+            let tmp = outPLY.deletingPathExtension().appendingPathExtension("lowlight\(vtag).png")
+            try writePNG(fixed, to: tmp); engineInputs[v] = tmp
+            print(String(format: "  [LowLight]%@ mean luminance %.2f → normalized", vtag, lum))
         }
         let t = Date()
-        var rgba = try RMBG(modelURL: rmbgURL).removeBackground(from: cg)
+        var rgba = try rmbg.removeBackground(from: cg)
         if let trimmed = Preprocess.personTrim(rgba: rgba, original: cg) {
             rgba = trimmed
-            print("  [PersonTrim] cutout trimmed to person mask")
+            print("  [PersonTrim]\(vtag) cutout trimmed to person mask")
         }
-        let tmp = outPLY.deletingPathExtension().appendingPathExtension("rmbg.png")
-        try writePNG(rgba, to: tmp); preRGBA = tmp
-        print("  [RMBG] \(cg.width)×\(cg.height) masked in \(String(format: "%.1f", Date().timeIntervalSince(t)))s → \(tmp.lastPathComponent)")
-    } else {
-        print("  [RMBG] model not found — using Vision foreground fallback")
+        let tmp = outPLY.deletingPathExtension().appendingPathExtension("rmbg\(vtag).png")
+        try writePNG(rgba, to: tmp); preRGBAs[v] = tmp
+        print("  [RMBG]\(vtag) \(cg.width)×\(cg.height) masked in \(String(format: "%.1f", Date().timeIntervalSince(t)))s → \(tmp.lastPathComponent)")
     }
     let t0 = Date()
     let splatOut = outPLY.deletingPathExtension().appendingPathExtension("gs.ply")
-    let n = try LiToEngine(weightsDir: weightsDir).generate(
-        imageURL: engineInput, steps: steps, outPLY: outPLY,
-        preprocessedRGBA: preRGBA, cfgScale: cfg, seed: seed, seedCandidates: bestOf,
+    let gen = try LiToEngine(weightsDir: weightsDir).generate(
+        imageURLs: engineInputs, steps: steps, outPLY: outPLY,
+        preprocessedRGBAs: preRGBAs, cfgScale: cfg, multiViewMode: mode,
+        seed: seed, seedCandidates: bestOf,
         outSplatPLY: splatOut) { f, s in
         print(String(format: "  [%3.0f%%] %@", f * 100, s))
     }
-    print("✓ ENGINE DONE: \(n) colored points, cfg=\(cfg), steps=\(steps) in \(Int(Date().timeIntervalSince(t0)))s → \(outPLY.path) (+ \(splatOut.lastPathComponent))")
-    return (splatOut, preRGBA)
+    if engineInputs.count > 1 {
+        for v in 0 ..< engineInputs.count {
+            print(String(format: "  [view %d] yaw %.0f° IoU %.3f", v + 1,
+                         gen.viewYaws[v] * 180 / .pi, gen.viewIoUs[v]))
+        }
+    }
+    print("✓ ENGINE DONE: \(gen.pointCount) colored points, \(engineInputs.count) view(s), cfg=\(cfg), steps=\(steps) in \(Int(Date().timeIntervalSince(t0)))s → \(outPLY.path) (+ \(splatOut.lastPathComponent))")
+    return (splatOut, preRGBAs, gen.viewYaws, gen.viewIoUs)
 }
 
-/// Splat → (optionally Sapiens-refined) mesh, written as PLY + OBJ.
+/// Splat → (optionally Sapiens-refined, optionally photo-textured) mesh, PLY + OBJ.
+/// `textureViews` (≥2) first recolors the splat PLY in place (so mesh vertex colors
+/// inherit photo color), then refines the recolored mesh vertices directly.
 func refineCLI(weightsDir: URL, gsPLY: URL, rgba: URL?, outBase: URL,
-               meshRes: Int, iso: Float, grid: Int, selftest: Bool) throws {
+               meshRes: Int, iso: Float, grid: Int, selftest: Bool,
+               textureViews: [TextureProject.View] = []) throws {
     let t0 = Date()
+    if textureViews.count >= 2 {
+        do {
+            let n = try TextureProject.recolorSplatPLY(at: gsPLY, views: textureViews) { print("  [texture] \($0)") }
+            print("  [texture] splat recolored from \(textureViews.count) photos (\(n) gaussians)")
+        } catch {
+            print("  [texture] splat recolor skipped: \(error)")
+        }
+    }
     var mesh = try MeshExtract.extract(gsPLY: gsPLY, resolution: meshRes, iso: iso) {
         print("  [mesh] \($0)")
     }
@@ -106,6 +146,10 @@ func refineCLI(weightsDir: URL, gsPLY: URL, rgba: URL?, outBase: URL,
         print("  [refine] no RGBA cutout available — raw mesh only")
     } else {
         print("  [refine] no SapiensNormal model in weights dir — raw mesh (convert via docs/sapiens2_normal_coreml_colab.ipynb)")
+    }
+    if textureViews.count >= 2 {
+        let n = TextureProject.recolor(mesh: &mesh, views: textureViews) { print("  [texture] \($0)") }
+        print("  [texture] mesh recolored (\(n) vertices)")
     }
     let plyURL = outBase.pathExtension.isEmpty ? outBase.appendingPathExtension("ply") : outBase
     let objURL = plyURL.deletingPathExtension().appendingPathExtension("obj")
@@ -142,18 +186,21 @@ do {
         try writePNG(rgba, to: URL(filePath: args[4]))
         print("✓ RMBG \(cg.width)×\(cg.height) → \(rgba.width)×\(rgba.height) in \(String(format: "%.1f", Date().timeIntervalSince(t0)))s → \(args[4])")
     case "engine":
-        guard args.count >= 5 else { print("usage: LiToSmoke engine <weightsDir> <image> <out.ply> [steps] [cfg] [seed] [bestOf]"); exit(1) }
+        // <images> = one path, a comma-separated list of angles, or one contact sheet.
+        guard args.count >= 5 else { print("usage: LiToSmoke engine <weightsDir> <images> <out.ply> [steps] [cfg] [seed] [bestOf]"); exit(1) }
         let steps = args.count > 5 ? (Int(args[5]) ?? 4) : 4
         let cfg = args.count > 6 ? (Float(args[6]) ?? 3.0) : 3.0
         let seed = args.count > 7 ? UInt64(args[7]) : nil
         let bestOf = args.count > 8 ? (Int(args[8]) ?? 1) : 1
-        try runEngineCLI(weightsDir: URL(filePath: args[2]), imagePath: args[3],
+        try runEngineCLI(weightsDir: URL(filePath: args[2]),
+                         imagePaths: args[3].split(separator: ",").map(String.init),
                          outPLY: URL(filePath: args[4]), steps: steps, cfg: cfg,
                          seed: seed, bestOf: bestOf)
     case "sculpt":
-        // Photo → splat → Sapiens-refined mesh, end to end (the quality pipeline).
+        // Photo(s) → splat → Sapiens-refined, photo-textured mesh (the quality pipeline).
+        // <images> = one path, a comma-separated list of angles, or one contact sheet.
         guard args.count >= 5 else {
-            print("usage: LiToSmoke sculpt <weightsDir> <image> <out_base> [steps=25] [cfg=3.0] [seed] [bestOf=3] [meshRes=256]")
+            print("usage: LiToSmoke sculpt <weightsDir> <images> <out_base> [steps=25] [cfg=3.0] [seed] [bestOf=3] [meshRes=256]")
             exit(1)
         }
         let steps = args.count > 5 ? (Int(args[5]) ?? 25) : 25
@@ -164,12 +211,78 @@ do {
         let weightsDir = URL(filePath: args[2])
         let base = URL(filePath: args[4])
         let pcURL = base.appendingPathExtension("pc.ply")
-        let (splat, rgba) = try runEngineCLI(weightsDir: weightsDir, imagePath: args[3],
-                                             outPLY: pcURL, steps: steps, cfg: cfg,
-                                             seed: seed, bestOf: bestOf)
-        try refineCLI(weightsDir: weightsDir, gsPLY: splat, rgba: rgba,
+        let (splat, rgbas, yaws, ious) = try runEngineCLI(
+            weightsDir: weightsDir, imagePaths: args[3].split(separator: ",").map(String.init),
+            outPLY: pcURL, steps: steps, cfg: cfg, seed: seed, bestOf: bestOf)
+        var textureViews = [TextureProject.View]()
+        if rgbas.count > 1 {
+            for v in 0 ..< rgbas.count {
+                guard let rgba = rgbas[v] else { continue }
+                textureViews.append(TextureProject.View(rgbaURL: rgba, yaw: yaws[v],
+                                                        weight: max(0.05, ious[v])))
+            }
+        }
+        try refineCLI(weightsDir: weightsDir, gsPLY: splat, rgba: rgbas.first ?? nil,
                       outBase: base.appendingPathExtension("mesh.ply"),
-                      meshRes: meshRes, iso: 0.5, grid: 1024, selftest: selftestFlag)
+                      meshRes: meshRes, iso: 0.5, grid: 1024, selftest: selftestFlag,
+                      textureViews: textureViews)
+    case "analyze":
+        // What auto-detect would pick for these image(s), with the working shown.
+        guard args.count >= 3 else { print("usage: LiToSmoke analyze <image[,image2,...]>"); exit(1) }
+        let urls = args[2].split(separator: ",").map { URL(filePath: String($0)) }
+        let a = ImageAnalyzer.analyze(imageURLs: urls)
+        print("measured: \(a.summary)")
+        for (i, m) in a.metrics.enumerated() {
+            print(String(format: "  view %d: %d×%d  ε=%.2f σ=%.2f λ=%.2f ℓ=%.2f%@",
+                         i + 1, m.width, m.height, m.edgeDensity, m.contrast, m.sharpness,
+                         m.luminance, m.premasked ? " (pre-masked)" : ""))
+        }
+        print("settings (default → detected):")
+        for n in a.notes {
+            print("  \(n.name): \(n.defaultValue) → \(n.recommended)\(n.changed ? "  *" : "")")
+            print("      \(n.reason)")
+        }
+    case "texture":
+        // Iterate on photo-texture backprojection on an existing splat without
+        // re-running the engine. Views are rgba@yawDegrees[@weight], comma-separated.
+        guard args.count >= 4 else {
+            print("usage: LiToSmoke texture <in.gs.ply> <rgba@yaw[@w],rgba@yaw[@w],...> [pc.ply]")
+            exit(1)
+        }
+        var views = [TextureProject.View]()
+        for spec in args[3].split(separator: ",") {
+            let parts = spec.split(separator: "@")
+            guard parts.count >= 2, let deg = Float(parts[1]) else {
+                print("✗ bad view spec '\(spec)' — want path@yawDegrees[@weight]"); exit(1)
+            }
+            let w = parts.count > 2 ? (Float(parts[2]) ?? 1) : 1
+            views.append(TextureProject.View(rgbaURL: URL(filePath: String(parts[0])),
+                                             yaw: deg * .pi / 180, weight: w))
+        }
+        let t0 = Date()
+        let n = try TextureProject.recolorSplatPLY(at: URL(filePath: args[2]), views: views) { print("  [texture] \($0)") }
+        if args.count > 4 {
+            _ = try TextureProject.recolorPointCloudPLY(at: URL(filePath: args[4]), views: views) { print("  [texture] \($0)") }
+        }
+        print("✓ TEXTURE: \(n) gaussians recolored from \(views.count) views in \(String(format: "%.1f", Date().timeIntervalSince(t0)))s")
+    case "split":
+        // Contact sheet → per-view crops (no weights needed; RMBG used when present).
+        guard args.count >= 4 else { print("usage: LiToSmoke split <sheet.png> <outDir> [weightsDir]"); exit(1) }
+        var rmbg: RMBG?
+        if args.count > 4 {
+            let m = URL(filePath: args[4]).appending(path: "RMBG2.mlpackage")
+            if FileManager.default.fileExists(atPath: m.path) { rmbg = try? RMBG(modelURL: m) }
+        }
+        let t0 = Date()
+        if let views = try SheetSplit.splitToFiles(imageURL: URL(filePath: args[2]), rmbg: rmbg,
+                                                   outDir: URL(filePath: args[3]),
+                                                   log: { print("  [sheet] \($0)") }) {
+            print("✓ SPLIT: \(views.count) views in \(String(format: "%.1f", Date().timeIntervalSince(t0)))s")
+            for v in views { print("  → \(v.path)") }
+        } else {
+            print("✗ not a contact sheet (fewer than 2 comparable figures found)")
+            exit(1)
+        }
     case "refine":
         // Iterate on an existing splat without re-running the engine.
         guard args.count >= 6 else {

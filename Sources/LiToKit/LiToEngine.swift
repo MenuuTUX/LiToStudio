@@ -5,8 +5,14 @@ import MLXRandom
 /// The in-process LiTo image→3D engine: orchestrates all five native stages and writes
 /// a colored point-cloud `.ply`. Replaces the Python subprocess entirely.
 ///
-///   image → [Vision preprocess] cond_rgba → [DINOv2] cond → [DiT Heun-ODE] latent
-///         → [voxel decoder + conv3d VAE] occupied-voxel coords → [gaussian decoder] gaussians → .ply
+///   image(s) → [Vision preprocess] cond_rgba → [DINOv2] cond → [DiT Heun-ODE] latent
+///            → [voxel decoder + conv3d VAE] occupied-voxel coords → [gaussian decoder] gaussians → .ply
+///
+/// One image is the reference path. Several images of the *same subject in the same
+/// pose* (front/¾/side/back — e.g. an AI-generated turnaround) condition one shape
+/// together via `MultiViewMode`; every view also scores seed candidates and gets a
+/// yaw estimate so later stages (texture backprojection, per-view refinement) know
+/// where each photo sits around the model.
 public final class LiToEngine {
     private let dino: Dinov2Encoder
     private let dit: DiT
@@ -20,9 +26,26 @@ public final class LiToEngine {
 
     public enum EngineError: Error, CustomStringConvertible {
         case emptyShape
+        case noViews
         public var description: String {
-            "The model found no object in this image — try a clearer subject on a clean background."
+            switch self {
+            case .emptyShape:
+                return "The model found no object in this image — try a clearer subject on a clean background."
+            case .noViews:
+                return "No conditioning images were provided."
+            }
         }
+    }
+
+    /// What a generation produced beyond the PLY files.
+    public struct GenResult {
+        public let pointCount: Int
+        /// Estimated camera azimuth per input view, radians around +z; 0 = the
+        /// conditioning convention (camera at +x looking −x). Single-view runs are
+        /// pinned to 0 — the model faces the conditioning camera by construction.
+        public let viewYaws: [Float]
+        /// Silhouette IoU per view at its yaw (−1 when scoring was skipped).
+        public let viewIoUs: [Float]
     }
 
     /// `weightsDir` holds `lito.safetensors` + `ss_dec_conv3d_16l8_fp16.safetensors`.
@@ -42,22 +65,7 @@ public final class LiToEngine {
         trellis = TrellisDecoder(tw)
     }
 
-    /// Run the full pipeline. `steps` = number of ODE timesteps (Heun: steps−1 corrector steps).
-    /// `progress(fraction, stage)` is called as it advances. Returns the gaussian/point count.
-    /// If `preprocessedRGBA` is set, it points to a pre-made RGBA PNG (from RMBG 2.0)
-    /// and the native Vision masking is skipped.
-    /// `occupancyThreshold` (logit; 0 = sigmoid 0.5, reference) raises the bar for a voxel to
-    /// count as occupied — higher prunes low-confidence "ghost" geometry. `opacityThreshold`
-    /// drops gaussians below that opacity from the cloud (prunes floaters).
-    /// `minComponentFraction` drops disconnected occupancy islands smaller than that fraction
-    /// of the largest connected component (floater blobs). `seed` makes runs reproducible.
-    /// `outSplatPLY` additionally writes the full gaussians as a standard 3DGS splat PLY —
-    /// the high-fidelity artifact (the point cloud is just a preview format).
-    /// `onStepPreview` is called after each sampling step with the step index.
-    /// `onStepCloud` (optional) additionally receives an *intermediate occupancy cloud* a
-    /// few times per candidate — world-space voxel centers (count·3 floats, z-up) decoded
-    /// from the running sample's final-state prediction. Drives the live "dots assembling
-    /// into the shape" preview; costs one voxel+occupancy decode per emission.
+    /// Single-image reference path — see the multi-view overload for the parameters.
     @discardableResult
     public func generate(imageURL: URL, steps: Int, outPLY: URL,
                          preprocessedRGBA: URL? = nil,
@@ -71,34 +79,93 @@ public final class LiToEngine {
                          progress: @escaping (Double, String) -> Void,
                          onStepPreview: ((Int, Int) -> Void)? = nil,
                          onStepCloud: (([Float], Int, Int) -> Void)? = nil) throws -> Int {
+        try generate(imageURLs: [imageURL], steps: steps, outPLY: outPLY,
+                     preprocessedRGBAs: [preprocessedRGBA],
+                     cfgScale: cfgScale,
+                     occupancyThreshold: occupancyThreshold,
+                     opacityThreshold: opacityThreshold,
+                     minComponentFraction: minComponentFraction,
+                     seed: seed, seedCandidates: seedCandidates,
+                     outSplatPLY: outSplatPLY, progress: progress,
+                     onStepPreview: onStepPreview, onStepCloud: onStepCloud).pointCount
+    }
+
+    /// Run the full pipeline. `steps` = number of ODE timesteps (Heun: steps−1 corrector steps).
+    /// `progress(fraction, stage)` is called as it advances.
+    /// `preprocessedRGBAs` aligns with `imageURLs`; a non-nil entry points to a pre-made
+    /// RGBA PNG (from RMBG 2.0) and native Vision masking is skipped for that view.
+    /// `multiViewMode` picks how several views condition the DiT (ignored for one view).
+    /// `occupancyThreshold` (logit; 0 = sigmoid 0.5, reference) raises the bar for a voxel to
+    /// count as occupied — higher prunes low-confidence "ghost" geometry. `opacityThreshold`
+    /// drops gaussians below that opacity from the cloud (prunes floaters).
+    /// `minComponentFraction` drops disconnected occupancy islands smaller than that fraction
+    /// of the largest connected component (floater blobs). `seed` makes runs reproducible.
+    /// Seed candidates are scored by silhouette IoU averaged over *all* views (each at its
+    /// best-matching yaw) — the multi-view consistency signal is much stronger than one view.
+    /// `outSplatPLY` additionally writes the full gaussians as a standard 3DGS splat PLY —
+    /// the high-fidelity artifact (the point cloud is just a preview format).
+    /// `onStepPreview` is called after each sampling step with the step index.
+    /// `onStepCloud` (optional) additionally receives an *intermediate occupancy cloud* a
+    /// few times per candidate — world-space voxel centers (count·3 floats, z-up) decoded
+    /// from the running sample's final-state prediction. Drives the live "dots assembling
+    /// into the shape" preview; costs one voxel+occupancy decode per emission.
+    @discardableResult
+    public func generate(imageURLs: [URL], steps: Int, outPLY: URL,
+                         preprocessedRGBAs: [URL?]? = nil,
+                         cfgScale: Float = 3.0,
+                         multiViewMode: MultiViewMode = .multidiffusion,
+                         occupancyThreshold: Float = 0,
+                         opacityThreshold: Float = 0.10,
+                         minComponentFraction: Float = 0.01,
+                         seed: UInt64? = nil,
+                         seedCandidates: Int = 1,
+                         outSplatPLY: URL? = nil,
+                         progress: @escaping (Double, String) -> Void,
+                         onStepPreview: ((Int, Int) -> Void)? = nil,
+                         onStepCloud: (([Float], Int, Int) -> Void)? = nil) throws -> GenResult {
         let res = 518
+        let nViews = imageURLs.count
+        guard nViews > 0 else { throw EngineError.noViews }
 
-        progress(0.04, "Preprocessing image (\(res)²)")
-        let condRGBA: MLXArray
-        if let rgba = preprocessedRGBA {
-            condRGBA = try Preprocess.condRGBA(rgbaURL: rgba, resolution: res)
-        } else {
-            condRGBA = try Preprocess.condRGBA(imageURL: imageURL, resolution: res)
+        // ── Per-view conditioning: preprocess + DINOv2 encode ──
+        var conds = [MLXArray]()
+        var masks = [[Bool]]()                  // 64² alpha silhouettes for scoring
+        let S = 64
+        for (v, url) in imageURLs.enumerated() {
+            let tag = nViews > 1 ? " — view \(v + 1)/\(nViews)" : ""
+            progress(0.02 + 0.10 * Double(v) / Double(nViews), "Preprocessing image (\(res)²)\(tag)")
+            let condRGBA: MLXArray
+            if let rgba = preprocessedRGBAs?[v] {
+                condRGBA = try Preprocess.condRGBA(rgbaURL: rgba, resolution: res)
+            } else {
+                condRGBA = try Preprocess.condRGBA(imageURL: url, resolution: res)
+            }
+            masks.append(Self.alphaMask(condRGBA: condRGBA, S: S))
+            progress(0.04 + 0.12 * Double(v + 1) / Double(nViews), "Encoding image (DINOv2)\(tag)")
+            let c = dino(condRGBA: condRGBA)
+            c.eval()
+            conds.append(c)
+            Memory.clearCache()
         }
-
-        progress(0.12, "Encoding image (DINOv2)")
-        let cond = dino(condRGBA: condRGBA)
-        cond.eval()
 
         var ts = [Float](repeating: 0, count: max(steps, 2))
         for i in ts.indices { ts[i] = Self.tEps + (1 - Self.tEps) * Float(i) / Float(ts.count - 1) }
 
         // Sample 1..N seeds; pick the candidate whose occupancy silhouette best matches the
-        // conditioning mask (the paper shows the sampler converges by ~25 steps — remaining
+        // conditioning mask(s) (the paper shows the sampler converges by ~25 steps — remaining
         // variance is seed luck, which this search turns into a quality knob).
         let nCand = max(1, seedCandidates)
         let baseSeed = seed ?? UInt64.random(in: 0 ..< .max)
         var latent = MLXArray(0), coords = MLXArray(0), n = 0
-        var bestIoU: Float = -1
+        var bestScore: Float = -1
+        var viewYaws = [Float](repeating: 0, count: nViews)
+        var viewIoUs = [Float](repeating: -1, count: nViews)
+        let needScore = nCand > 1 || nViews > 1
         for c in 0 ..< nCand {
             MLXRandom.seed(baseSeed &+ UInt64(c) &* 7919)
             let x0 = MLXRandom.normal([1, 8192, 32])
             let candLabel = nCand > 1 ? " (candidate \(c + 1)/\(nCand))" : ""
+            let viewLabel = nViews > 1 ? " · \(nViews) views (\(multiViewMode.rawValue))" : ""
             let f0 = 0.18 + 0.56 * Double(c) / Double(nCand)
             let fw = 0.56 / Double(nCand)
             // Live cloud preview: decode the predicted-final latent's occupancy every few
@@ -117,8 +184,9 @@ public final class LiToEngine {
                 }
                 Memory.clearCache()
             }
-            let sampled = dit.sample(x0: x0, ts: ts, cond: cond, cfgScale: cfgScale, onStep: { done, total in
-                progress(f0 + fw * Double(done) / Double(total), "Sampling shape — step \(done)/\(total)\(candLabel)")
+            let sampled = dit.sample(x0: x0, ts: ts, conds: conds, cfgScale: cfgScale,
+                                     mode: multiViewMode, onStep: { done, total in
+                progress(f0 + fw * Double(done) / Double(total), "Sampling shape — step \(done)/\(total)\(candLabel)\(viewLabel)")
                 onStepPreview?(done, total)
             }, onStepSample: onStepSample)
             let candLatent = sampled * Self.latentStd + Self.latentMean
@@ -128,20 +196,45 @@ public final class LiToEngine {
             let logit = trellis(ssLatent: ss); logit.eval(); Memory.clearCache()
             let (candCoords, candN) = trellis.initCoords(logit: logit, threshold: occupancyThreshold,
                                                          minComponentFraction: minComponentFraction)
-            if nCand == 1 {
+            if !needScore {
                 latent = candLatent; coords = candCoords; n = candN
                 break
             }
             guard candN > 0 else { continue }
-            let iou = Self.silhouetteIoU(coords: candCoords, count: candN, condRGBA: condRGBA)
-            progress(f0 + fw, String(format: "Candidate %d/%d — silhouette IoU %.3f", c + 1, nCand, iou))
-            if iou > bestIoU {
-                bestIoU = iou
-                latent = candLatent; coords = candCoords; n = candN
+
+            // Score: mean silhouette IoU over views. A single view is pinned to yaw 0
+            // (the model faces the conditioning camera by construction). With several
+            // views nothing fixes the generated orientation — and no view is "the
+            // front" a priori — so every view gets the 5°-grid yaw sweep; view order
+            // doesn't matter.
+            let pts = candCoords.asType(.float32).asArray(Float.self)
+            var yaws = [Float](repeating: 0, count: nViews)
+            var ious = [Float](repeating: 0, count: nViews)
+            for v in 0 ..< nViews {
+                if nViews == 1 {
+                    ious[v] = Self.silhouetteIoU(points: pts, count: candN, mask: masks[v], S: S, yaw: 0)
+                } else {
+                    (yaws[v], ious[v]) = Self.bestYaw(points: pts, count: candN, mask: masks[v], S: S)
+                }
             }
+            let score = ious.reduce(0, +) / Float(nViews)
+            if nViews > 1 {
+                let detail = (0 ..< nViews).map { v in
+                    String(format: "v%d %.0f° %.3f", v + 1, yaws[v] * 180 / .pi, ious[v])
+                }.joined(separator: "  ")
+                progress(f0 + fw, String(format: "Candidate %d/%d — mean IoU %.3f [%@]", c + 1, nCand, score, detail))
+            } else {
+                progress(f0 + fw, String(format: "Candidate %d/%d — silhouette IoU %.3f", c + 1, nCand, score))
+            }
+            if score > bestScore {
+                bestScore = score
+                latent = candLatent; coords = candCoords; n = candN
+                viewYaws = yaws; viewIoUs = ious
+            }
+            if nCand == 1 { break }
         }
         guard n > 0 else { throw EngineError.emptyShape }
-        progress(0.78, nCand > 1 ? String(format: "Best seed IoU %.3f — decoding", bestIoU) : "Decoding structure")
+        progress(0.78, needScore ? String(format: "Best mean IoU %.3f — decoding", bestScore) : "Decoding structure")
 
         progress(0.88, "Decoding \(n) gaussians")
         let gs = gauss(latent: latent, initCoord: coords)
@@ -153,24 +246,32 @@ public final class LiToEngine {
         }
         let count = try Splat.writePointCloud(gs, to: outPLY, opacityThreshold: opacityThreshold)
         progress(1.0, "Done")
-        return count
+        return GenResult(pointCount: count, viewYaws: viewYaws, viewIoUs: viewIoUs)
     }
 
-    /// IoU between the occupancy silhouette projected into the conditioning view and the
-    /// conditioning alpha mask. The conditioning camera looks along +x with v=z up, u=y
-    /// (determined empirically via `LiToSmoke score`: IoU 0.64 vs ≤0.61 for all others).
-    static func silhouetteIoU(coords: MLXArray, count: Int, condRGBA: MLXArray) -> Float {
-        let S = 64
+    // MARK: - silhouette scoring
+
+    /// Downsampled boolean alpha silhouette of a cond view (S×S, row 0 = top).
+    static func alphaMask(condRGBA: MLXArray, S: Int) -> [Bool] {
         let res = condRGBA.dim(0)
         let alpha: [Float] = condRGBA[0 ..< res, 0 ..< res, 3 ..< 4].reshaped([res * res]).asArray(Float.self)
         var mask = [Bool](repeating: false, count: S * S)
         for y in 0 ..< S { for x in 0 ..< S {
             if alpha[(y * res / S) * res + x * res / S] > 0.5 { mask[y * S + x] = true }
         }}
-        let c = coords.asType(.float32).asArray(Float.self)
+        return mask
+    }
+
+    /// IoU between the occupancy silhouette seen from a camera at azimuth `yaw` and a
+    /// view's alpha mask. The conditioning camera (yaw 0) is orthographic along +x with
+    /// v = z up, u = y (pinned empirically via `LiToSmoke score`); a camera at azimuth θ
+    /// has right = (−sinθ, cosθ, 0), so u = y·cosθ − x·sinθ, v = z.
+    static func silhouetteIoU(points: [Float], count: Int, mask: [Bool], S: Int, yaw: Float) -> Float {
+        let cosT = cos(yaw), sinT = sin(yaw)
         var sil = [Bool](repeating: false, count: S * S)
         for i in 0 ..< count {
-            let u = c[i * 3 + 1], v = c[i * 3 + 2]                  // (y, z) plane
+            let u = points[i * 3 + 1] * cosT - points[i * 3] * sinT
+            let v = points[i * 3 + 2]
             let xi = Int((u + 1.04) / 2.08 * Float(S)), yi = Int((1.04 - v) / 2.08 * Float(S))
             if xi >= 0, xi < S, yi >= 0, yi < S { sil[yi * S + xi] = true }
         }
@@ -180,5 +281,18 @@ public final class LiToEngine {
             if sil[j] || mask[j] { uni += 1 }
         }
         return Float(inter) / Float(max(uni, 1))
+    }
+
+    /// Sweep the camera azimuth on a 5° grid and return the best-matching yaw + IoU.
+    static func bestYaw(points: [Float], count: Int, mask: [Bool], S: Int) -> (yaw: Float, iou: Float) {
+        var best: (yaw: Float, iou: Float) = (0, -1)
+        var deg = 0
+        while deg < 360 {
+            let yaw = Float(deg) * .pi / 180
+            let iou = silhouetteIoU(points: points, count: count, mask: mask, S: S, yaw: yaw)
+            if iou > best.iou { best = (yaw, iou) }
+            deg += 5
+        }
+        return best
     }
 }

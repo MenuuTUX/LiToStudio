@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import LiToKit
 
 struct ContentView: View {
     // First run on a machine without the models: show setup instead of the app.
@@ -73,7 +74,21 @@ struct DropZone: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            if let url = model.inputImageURL, let img = NSImage(contentsOf: url) {
+            if model.inputImageURLs.count > 1 {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 72, maximum: 110), spacing: 6)],
+                          spacing: 6) {
+                    ForEach(model.inputImageURLs, id: \.self) { url in
+                        if let img = NSImage(contentsOf: url) {
+                            Image(nsImage: img)
+                                .resizable().scaledToFit()
+                                .frame(maxHeight: 110)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                    }
+                }
+                Text("\(model.inputImageURLs.count) views — multi-view conditioning")
+                    .font(.caption).foregroundStyle(Theme.dim).lineLimit(1)
+            } else if let url = model.inputImageURL, let img = NSImage(contentsOf: url) {
                 Image(nsImage: img)
                     .resizable().scaledToFit()
                     .frame(maxHeight: 196)
@@ -83,8 +98,9 @@ struct DropZone: View {
             } else {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 34)).foregroundStyle(Theme.accent)
-                Text("Drop a photo").font(.headline)
-                Text("or click to choose").font(.caption).foregroundStyle(Theme.dim)
+                Text("Drop a photo — or several angles").font(.headline)
+                Text("multiple shots or one AI contact sheet → one model")
+                    .font(.caption).foregroundStyle(Theme.dim)
             }
         }
         .frame(maxWidth: .infinity)
@@ -101,12 +117,13 @@ struct DropZone: View {
         .contentShape(Rectangle())
         .onTapGesture { importing = true }
         .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first else { return false }
-            model.pickImage(url)
+            guard !urls.isEmpty else { return false }
+            model.pickImages(urls)
             return true
         } isTargeted: { targeted = $0 }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.image]) { result in
-            if case .success(let url) = result { model.pickImage(url) }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.image],
+                      allowsMultipleSelection: true) { result in
+            if case .success(let urls) = result { model.pickImages(urls) }
         }
         .animation(.easeInOut(duration: 0.15), value: targeted)
     }
@@ -172,6 +189,9 @@ struct SettingsPanel: View {
         VStack(alignment: .leading, spacing: 14) {
             Toggle("Auto-detect settings from image", isOn: $model.autoSettings)
                 .font(.system(size: 13, weight: .medium))
+            if model.autoSettings, let analysis = model.analysis {
+                AnalysisPanel(analysis: analysis)
+            }
             Divider().overlay(Theme.stroke)
             SliderRow(title: "Sampling steps", value: $model.samplingSteps,
                       range: 4...60, step: 1, format: "%.0f")
@@ -185,7 +205,15 @@ struct SettingsPanel: View {
                       range: 0...3, step: 0.25, format: "%.2f")
             SliderRow(title: "Seed search (best of N)", value: $model.seedCandidates,
                       range: 1...5, step: 1, format: "%.0f")
-            Text("Samples N different seeds and keeps the one whose silhouette best matches the photo — strong for tricky poses/occlusions, N× the sampling time.")
+            Text("Samples N different seeds and keeps the one whose silhouette best matches the photo(s) — strong for tricky poses/occlusions, N× the sampling time.")
+                .font(.system(size: 10)).foregroundStyle(Theme.dim)
+            Picker("Multi-view blend", selection: $model.multiViewMode) {
+                Text("Multidiffusion (best)").tag(MultiViewMode.multidiffusion)
+                Text("Stochastic (fast)").tag(MultiViewMode.stochastic)
+                Text("Token concat").tag(MultiViewMode.concat)
+            }
+            .font(.system(size: 13))
+            Text("How several photos of the same subject condition one shape. Multidiffusion averages all views every step (~(N+1)/2× time); stochastic cycles views at single-view cost; concat cross-attends everything at once.")
                 .font(.system(size: 10)).foregroundStyle(Theme.dim)
             SliderRow(title: "Opacity cutoff", value: $model.opacityThreshold,
                       range: 0.05...0.6, step: 0.05, format: "%.2f")
@@ -214,6 +242,42 @@ struct SettingsPanel: View {
             Image(systemName: sym).font(.system(size: 12)).foregroundStyle(Theme.accent).frame(width: 16)
             Text(t).font(.system(size: 13))
         }
+    }
+}
+
+/// What auto-detect measured and decided: default → detected per setting, with the math.
+struct AnalysisPanel: View {
+    let analysis: ImageAnalyzer.Analysis
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(analysis.summary)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(Theme.dim)
+            ForEach(analysis.notes) { note in
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 6) {
+                        Text(note.name).font(.system(size: 11, weight: .medium))
+                        Spacer()
+                        Text(note.defaultValue)
+                            .font(.system(size: 11).monospacedDigit())
+                            .foregroundStyle(Theme.dim)
+                            .strikethrough(note.changed, color: Theme.dim)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 8)).foregroundStyle(Theme.dim)
+                        Text(note.recommended)
+                            .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(note.changed ? Theme.accent : Theme.dim)
+                    }
+                    Text(note.reason)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(Theme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.bg.opacity(0.5)))
     }
 }
 

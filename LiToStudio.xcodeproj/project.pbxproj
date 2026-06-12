@@ -31,6 +31,7 @@
 		76D2AADCEE9D9BB972320ABD /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = F3F66C28694B98A93B5BBDED /* MLXFast */; };
 		7791287D1F221F0647731123 /* Splat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1740A56A90DBB6A794F9D295 /* Splat.swift */; };
 		7A4F435D530D17096206722F /* WeightsInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3850CC75B2CF2157B88F300 /* WeightsInstaller.swift */; };
+		8031350FFDE77016F4E8777B /* TextureProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06CA1ADE4D21BC0396C11D5 /* TextureProject.swift */; };
 		91D2710F67F426D031A2C0B3 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 3A20FA88AF14968C6350FFED /* MLXNN */; };
 		9EE3238AE0408E8E8EFC3E39 /* GaussianDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABBD753DAA1DA81ED35CAA17 /* GaussianDecoder.swift */; };
 		A7F0A483D434670B389E67A3 /* Parity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9400783481BE80B07723395A /* Parity.swift */; };
@@ -43,6 +44,7 @@
 		DD27C86A60962588E104D5F5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4C70AEC130CF33AC647BD0 /* Theme.swift */; };
 		DF06211E6DF6776501BC9EE5 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D575143379EC86DFF430966 /* SetupView.swift */; };
 		E4CDE7EAEAB6BBE2F8C55FB5 /* TorchZip.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA5A1C6BAC16232BAEECCF3 /* TorchZip.swift */; };
+		EA1454A2CBF783FC2A1E5C6D /* SheetSplit.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB774B5F6A80174AED44B9CF /* SheetSplit.swift */; };
 		EB5A43A7B28D5FAB1F7126DE /* TorchUnpickler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2815B08916525DB6AAD8BC75 /* TorchUnpickler.swift */; };
 		EC8C3CC439E092065B463370 /* ImageAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3DD27612024AA5C1003C15D /* ImageAnalyzer.swift */; };
 		EFFE913D146979A15C810721 /* SplatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BED85D4F8BB9553372D4179 /* SplatView.swift */; };
@@ -118,6 +120,8 @@
 		C3850CC75B2CF2157B88F300 /* WeightsInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightsInstaller.swift; sourceTree = "<group>"; };
 		C6834324A46C15439B96598A /* SapiensNormal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SapiensNormal.swift; sourceTree = "<group>"; };
 		D3DD27612024AA5C1003C15D /* ImageAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageAnalyzer.swift; sourceTree = "<group>"; };
+		DB774B5F6A80174AED44B9CF /* SheetSplit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetSplit.swift; sourceTree = "<group>"; };
+		E06CA1ADE4D21BC0396C11D5 /* TextureProject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextureProject.swift; sourceTree = "<group>"; };
 		E6F3908713CE12C21743D3E6 /* Trellis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trellis.swift; sourceTree = "<group>"; };
 		ECEF2552728B4C77884ECC59 /* Nn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Nn.swift; sourceTree = "<group>"; };
 		F2C8193E76491B64568D1E41 /* MeshExtract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshExtract.swift; sourceTree = "<group>"; };
@@ -179,8 +183,10 @@
 				B06E212768FD0F064477D0D8 /* Preprocess.swift */,
 				A29B2B60CA077798F5C87812 /* RMBG.swift */,
 				C6834324A46C15439B96598A /* SapiensNormal.swift */,
+				DB774B5F6A80174AED44B9CF /* SheetSplit.swift */,
 				2A951581951BC2C23CC65233 /* Smoke.swift */,
 				1740A56A90DBB6A794F9D295 /* Splat.swift */,
+				E06CA1ADE4D21BC0396C11D5 /* TextureProject.swift */,
 				E6F3908713CE12C21743D3E6 /* Trellis.swift */,
 				FB944B113CB1963BD2BD67E9 /* Upscaler.swift */,
 				5D60A63EB15D18C8C6985E2A /* VoxelDecoder.swift */,
@@ -402,8 +408,10 @@
 				156B2055DAE661677DEFA759 /* Preprocess.swift in Sources */,
 				B0B3521E392D70EBF7DC1CC1 /* RMBG.swift in Sources */,
 				5FC86C62A96A8FA644854FC2 /* SapiensNormal.swift in Sources */,
+				EA1454A2CBF783FC2A1E5C6D /* SheetSplit.swift in Sources */,
 				2AE923360DF1D71CEDFDEA7A /* Smoke.swift in Sources */,
 				7791287D1F221F0647731123 /* Splat.swift in Sources */,
+				8031350FFDE77016F4E8777B /* TextureProject.swift in Sources */,
 				5816E037325253578F2F2788 /* Trellis.swift in Sources */,
 				D22A756E3C58329B6EB56062 /* Upscaler.swift in Sources */,
 				68FB1CF49FAA7D6A6D90CF0D /* VoxelDecoder.swift in Sources */,
