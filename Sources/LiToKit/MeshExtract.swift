@@ -25,6 +25,58 @@ public enum MeshExtract {
         }
     }
 
+    /// Remove disconnected triangle islands smaller than `minFraction` of the
+    /// largest component, compacting the vertex buffer. Union-find over shared
+    /// vertices; runs after smoothing, before coloring.
+    static func removeSmallComponents(_ verts: inout [Float], _ tris: inout [Int32],
+                                      minFraction: Float, log: ((String) -> Void)?) {
+        let nV = verts.count / 3
+        guard nV > 0, !tris.isEmpty else { return }
+        var parent = [Int32](0 ..< Int32(nV))
+        func find(_ x: Int32) -> Int32 {
+            var r = x
+            while parent[Int(r)] != r { r = parent[Int(r)] }
+            var c = x
+            while parent[Int(c)] != r { let n = parent[Int(c)]; parent[Int(c)] = r; c = n }
+            return r
+        }
+        func union(_ a: Int32, _ b: Int32) {
+            let ra = find(a), rb = find(b)
+            if ra != rb { parent[Int(ra)] = rb }
+        }
+        for t in stride(from: 0, to: tris.count, by: 3) {
+            union(tris[t], tris[t + 1]); union(tris[t + 1], tris[t + 2])
+        }
+        var triCount = [Int32: Int]()
+        for t in stride(from: 0, to: tris.count, by: 3) {
+            triCount[find(tris[t]), default: 0] += 1
+        }
+        guard triCount.count > 1, let maxCount = triCount.values.max() else { return }
+        let minKeep = max(1, Int(Float(maxCount) * minFraction))
+        let keepRoots = Set(triCount.filter { $0.value >= minKeep }.keys)
+        guard keepRoots.count < triCount.count else { return }
+
+        var newTris = [Int32]()
+        newTris.reserveCapacity(tris.count)
+        for t in stride(from: 0, to: tris.count, by: 3) where keepRoots.contains(find(tris[t])) {
+            newTris.append(tris[t]); newTris.append(tris[t + 1]); newTris.append(tris[t + 2])
+        }
+        var remap = [Int32](repeating: -1, count: nV)
+        var newVerts = [Float]()
+        newVerts.reserveCapacity(verts.count)
+        for i in newTris.indices {
+            let v = Int(newTris[i])
+            if remap[v] == -1 {
+                remap[v] = Int32(newVerts.count / 3)
+                newVerts.append(verts[v * 3]); newVerts.append(verts[v * 3 + 1]); newVerts.append(verts[v * 3 + 2])
+            }
+            newTris[i] = remap[v]
+        }
+        log?("component cleanup: \(triCount.count) shells → \(keepRoots.count), \(tris.count / 3) → \(newTris.count / 3) tris")
+        verts = newVerts
+        tris = newTris
+    }
+
     // MARK: - Splat loading (our 3DGS export format)
 
     struct Splats {
@@ -219,6 +271,10 @@ public enum MeshExtract {
             verts = cur
             log?("taubin smoothing ×\(smoothIterations) done")
         }
+
+        // 3b. component cleanup: marching cubes leaves floater shells around stray
+        // density blobs — drop islands below 2 % of the largest component.
+        removeSmallComponents(&verts, &tris, minFraction: 0.02, log: log)
 
         // 4. vertex colors from the nearest opaque splat (hash grid lookup)
         var colors = [UInt8](repeating: 128, count: verts.count)

@@ -86,6 +86,54 @@ public final class Upscaler {
         return downsample(upscaled, toWidth: targetW, height: targetH)
     }
 
+    /// Like `upscaleToMax`, but keeps the source's alpha channel. The model only sees
+    /// RGB (a transparent region would land in it as black and the cutout would be
+    /// lost), so the alpha plane is resampled separately with high-quality
+    /// interpolation and re-attached to the upscaled color. Sources without an alpha
+    /// channel take the plain path unchanged.
+    public func upscaleToMaxPreservingAlpha(_ source: CGImage, maxDim: Int) throws -> CGImage {
+        let rgb = try upscaleToMax(source, maxDim: maxDim)
+        let hasAlpha: Bool
+        switch source.alphaInfo {
+        case .first, .last, .premultipliedFirst, .premultipliedLast: hasAlpha = true
+        default: hasAlpha = false
+        }
+        guard hasAlpha, rgb !== source else { return rgb }
+        return Self.attachAlpha(rgb, from: source) ?? rgb
+    }
+
+    /// Resample `source`'s alpha plane to `rgb`'s size and combine (premultiplied).
+    private static func attachAlpha(_ rgb: CGImage, from source: CGImage) -> CGImage? {
+        let w = rgb.width, h = rgb.height
+        let cs = CGColorSpaceCreateDeviceRGB()
+
+        // High-quality resample of the source (incl. its alpha) to the output size;
+        // only the alpha channel is read from this draw.
+        var srcPx = [UInt8](repeating: 0, count: w * h * 4)
+        guard let actx = CGContext(data: &srcPx, width: w, height: h, bitsPerComponent: 8,
+                                   bytesPerRow: w * 4, space: cs,
+                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        actx.interpolationQuality = .high
+        actx.draw(source, in: CGRect(x: 0, y: 0, width: w, height: h))
+
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let cctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8,
+                                   bytesPerRow: w * 4, space: cs,
+                                   bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        cctx.draw(rgb, in: CGRect(x: 0, y: 0, width: w, height: h))
+        for i in 0 ..< (w * h) {
+            let a = Int(srcPx[i * 4 + 3])
+            px[i * 4] = UInt8(Int(px[i * 4]) * a / 255)
+            px[i * 4 + 1] = UInt8(Int(px[i * 4 + 1]) * a / 255)
+            px[i * 4 + 2] = UInt8(Int(px[i * 4 + 2]) * a / 255)
+            px[i * 4 + 3] = UInt8(a)
+        }
+        guard let octx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8,
+                                   bytesPerRow: w * 4, space: cs,
+                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        return octx.makeImage()
+    }
+
     // MARK: - Private
 
     private func runTile(_ tile: [Float], tw: Int, th: Int) throws -> [Float] {

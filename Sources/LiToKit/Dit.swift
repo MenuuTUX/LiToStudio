@@ -125,9 +125,10 @@ public struct DiT {
     /// DiT evaluations. Used for live "shape forming" previews; quality improves as t→1.
     public func sample(x0: MLXArray, ts: [Float], cond: MLXArray, cfgScale: Float = 1.0,
                        onStep: ((Int, Int) -> Void)? = nil,
-                       onStepSample: ((Int, Int, MLXArray) -> Void)? = nil) -> MLXArray {
+                       onStepSample: ((Int, Int, MLXArray) -> Void)? = nil,
+                       shouldStop: (() -> Bool)? = nil) -> MLXArray {
         sample(x0: x0, ts: ts, conds: [cond], cfgScale: cfgScale,
-               onStep: onStep, onStepSample: onStepSample)
+               onStep: onStep, onStepSample: onStepSample, shouldStop: shouldStop)
     }
 
     /// Multi-image conditioned sampling (same subject, different angles — the TRELLIS
@@ -141,10 +142,15 @@ public struct DiT {
     ///   • `.concat` — cross-attend all views' tokens at once (m = N·1374). Single pass;
     ///     off-distribution for the single-image-trained DiT but cheap, and the right
     ///     mode once the fine-tune trains with multi-view concat conditioning.
+    /// `shouldStop` is polled before every Heun step; when true the loop exits early
+    /// and the *current* (partially integrated) sample is returned — callers decide
+    /// whether to discard it (immediate cancel) or never set it mid-candidate
+    /// (finish-candidate cancel).
     public func sample(x0: MLXArray, ts: [Float], conds condsIn: [MLXArray], cfgScale: Float = 1.0,
                        mode: MultiViewMode = .multidiffusion,
                        onStep: ((Int, Int) -> Void)? = nil,
-                       onStepSample: ((Int, Int, MLXArray) -> Void)? = nil) -> MLXArray {
+                       onStepSample: ((Int, Int, MLXArray) -> Void)? = nil,
+                       shouldStop: (() -> Bool)? = nil) -> MLXArray {
         precondition(!condsIn.isEmpty, "need at least one conditioning view")
         let conds = mode == .concat && condsIn.count > 1
             ? [concatenated(condsIn, axis: 1)] : condsIn
@@ -189,6 +195,7 @@ public struct DiT {
         var x = x0.asType(.float32)
         let n = ts.count - 1
         for i in 0 ..< n {
+            if shouldStop?() == true { break }
             let h = ts[i + 1] - ts[i]
             let d0 = vel(ts[i], x, step: i, half: 0)
             let xMid = x + h * d0; xMid.eval()

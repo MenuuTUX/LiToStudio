@@ -1,0 +1,324 @@
+3D OBJECT / LANDMARK LIST FOR MULTI-VIEW FEMALE MODEL
+========================================================
+
+Purpose:
+This list defines visible 3D objects, clothing components, accessories, and useful semantic landmarks
+for a SAM3 / multi-view LiTo conditioning pipeline.
+
+Recommended naming style:
+Use neutral academic labels such as "upper_torso_garment", "hip_strap_line", and "navel_piercing"
+instead of casual or sensitive wording.
+
+------------------------------------------------------------
+A. WHOLE-BODY / MAJOR BODY REGIONS
+------------------------------------------------------------
+
+B001  full_body_silhouette              Overall visible human silhouette
+B002  head                              Full head volume
+B003  face_region                       Face area visible in frontal/oblique views
+B004  scalp_hairline_region             Hairline / forehead boundary
+B005  hair_volume                       Full long hair mass
+B006  front_hair_strands                Hair strands visible over front torso
+B007  rear_hair_sheet                   Hair volume visible down the back
+B008  side_hair_profile                 Hair visible in side views
+B009  neck                              Neck region
+B010  left_shoulder                     Left shoulder
+B011  right_shoulder                    Right shoulder
+B012  shoulder_line                     Cross-body shoulder landmark
+B013  left_upper_arm                    Left upper arm
+B014  right_upper_arm                   Right upper arm
+B015  left_forearm                      Left forearm
+B016  right_forearm                     Right forearm
+B017  left_elbow                        Left elbow region
+B018  right_elbow                       Right elbow region
+B019  left_wrist                        Left wrist region
+B020  right_wrist                       Right wrist region
+B021  left_hand                         Left hand
+B022  right_hand                        Right hand
+B023  raised_hand                       Hand placed on/near top of head
+B024  relaxed_hand                      Lower hand near side of pants
+B025  fingers                           Finger shapes
+B026  fingernails                       Long acrylic nail tips
+B027  upper_torso                       Upper torso / chest area
+B028  sternum_centerline                Midline between upper-torso garment cups
+B029  ribcage_region                    Rib/side torso region
+B030  abdomen                           Stomach / abdominal region
+B031  navel_region                      Area surrounding belly button
+B032  waist_region                      Waist contour
+B033  left_waist_contour                Left waist curve
+B034  right_waist_contour               Right waist curve
+B035  hip_region                        Pelvis/hip volume
+B036  left_hip                          Left hip contour
+B037  right_hip                         Right hip contour
+B038  back_torso                        Back torso visible in rear view
+B039  lower_back                        Lower back region above waistband
+B040  lower_body_under_pants            Legs/lower body volume under cargo pants
+
+------------------------------------------------------------
+B. FACE / IDENTITY LANDMARKS
+------------------------------------------------------------
+
+F001  left_eye                          Left eye
+F002  right_eye                         Right eye
+F003  eye_pair                          Both eyes as one landmark group
+F004  left_eyebrow                      Left eyebrow
+F005  right_eyebrow                     Right eyebrow
+F006  eyebrow_pair                      Both eyebrows as one landmark group
+F007  nose                              Nose bridge and tip
+F008  lips                              Mouth/lip region
+F009  upper_lip                         Upper lip
+F010  lower_lip                         Lower lip
+F011  jawline                           Jaw contour
+F012  chin                              Chin
+F013  cheek_region                      Cheek area
+F014  left_cheek                        Left cheek
+F015  right_cheek                       Right cheek
+F016  forehead                          Forehead region
+F017  facial_outline                    Face boundary / oval
+F018  eye_makeup_region                 Eyelash/eyeliner detail region
+
+------------------------------------------------------------
+C. UPPER-TORSO GARMENT / BIKINI TOP COMPONENTS
+------------------------------------------------------------
+
+C001  upper_torso_garment               Entire brown triangle top
+C002  left_garment_cup                  Left cup/panel of top
+C003  right_garment_cup                 Right cup/panel of top
+C004  center_garment_gap                Center gap between cups
+C005  underbust_strap                   Horizontal strap below chest
+C006  left_underbust_segment            Left section of underbust strap
+C007  right_underbust_segment           Right section of underbust strap
+C008  neck_or_upper_strap               Upper strap leading toward neck/shoulder
+C009  side_garment_strap_left           Left side body strap
+C010  side_garment_strap_right          Right side body strap
+C011  back_garment_strap                Rear strap visible in back view
+C012  back_garment_tie                  Tie/knot area on back
+C013  garment_edge_contour              Outer edges of top
+C014  garment_shadow_folds              Folds/shading on garment fabric
+
+------------------------------------------------------------
+D. LOWER GARMENT / CARGO PANTS COMPONENTS
+------------------------------------------------------------
+
+P001  cargo_pants                       Entire black low-rise cargo pants
+P002  pants_waistband                   Top waistband edge
+P003  front_waistband_curve             Front curved waistband line
+P004  rear_waistband_curve              Rear curved waistband line
+P005  pants_front_closure               Button/fly area
+P006  waistband_eyelets                 Metal eyelets at waistband/front
+P007  belt_loops                        Belt loops around waistband
+P008  left_front_pant_panel             Left front pant fabric panel
+P009  right_front_pant_panel            Right front pant fabric panel
+P010  left_side_pant_panel              Left side fabric panel
+P011  right_side_pant_panel             Right side fabric panel
+P012  rear_pant_panel                   Back fabric area
+P013  left_back_pocket                  Left rear pocket
+P014  right_back_pocket                 Right rear pocket
+P015  left_cargo_pocket                 Left cargo pocket
+P016  right_cargo_pocket                Right cargo pocket
+P017  pocket_flaps                      Pocket flap structures
+P018  pants_side_seams                  Side seam lines
+P019  pants_front_seams                 Front seam/fold lines
+P020  pants_fabric_folds                Baggy fabric folds and wrinkles
+P021  pants_lower_opening_visible       Lower visible pant opening/crop area
+P022  low_rise_fit_boundary             Low-rise pants-body boundary
+
+------------------------------------------------------------
+E. HIP / WAIST STRAP LINE COMPONENTS
+------------------------------------------------------------
+
+H001  hip_strap_line                    Visible hip/waist strap line
+H002  left_hip_strap                    Left visible hip strap
+H003  right_hip_strap                   Right visible hip strap
+H004  side_hip_strap_segment            Strap segment seen in side views
+H005  rear_hip_strap_line               Strap line across lower back
+H006  rear_center_strap_region          Rear center/triangle strap region
+H007  hip_strap_body_contact_points     Points where strap meets body contour
+
+------------------------------------------------------------
+F. GLOVES / HANDWEAR COMPONENTS
+------------------------------------------------------------
+
+G001  gloves                            Both black fingerless gloves as a group
+G002  left_glove                        Left glove
+G003  right_glove                       Right glove
+G004  raised_hand_glove                 Glove on hand touching head
+G005  relaxed_hand_glove                Glove on hand near side
+G006  glove_palm_region                 Palm side of glove
+G007  glove_backhand_region             Back of hand glove surface
+G008  fingerless_openings               Openings around fingers
+G009  glove_wrist_band                  Wrist band section
+G010  glove_wrist_buckle_or_patch       Buckle/patch detail on glove
+G011  glove_fabric_wrinkles             Leather/fabric wrinkles
+G012  glove_edge_contours               Outer glove boundary
+
+------------------------------------------------------------
+G. CHAIN BELT / WAIST ACCESSORIES
+------------------------------------------------------------
+
+A001  chain_belt                        Entire silver chain belt assembly
+A002  main_waist_chain                  Main chain around waist
+A003  left_waist_chain_segment          Left chain segment
+A004  right_waist_chain_segment         Right chain segment
+A005  front_draped_chain                Front draped chain curve
+A006  side_draped_chain                 Side chain visible in profile
+A007  rear_chain_segment                Chain visible from back
+A008  chain_links                       Individual chain-link pattern
+A009  chain_attachment_rings            Rings connecting charms to chain
+A010  central_charm_cluster             Group of front dangling charms
+A011  large_cross_charm                 Large cross pendant
+A012  shield_cross_charm                Shield/crest-shaped charm with cross
+A013  ornate_cross_charm                Ornate/fleur-de-lis-style cross charm
+A014  star_belt_charm                   Star charm hanging from belt
+A015  small_dangling_charms             Smaller extra dangling charms
+A016  charm_reflections                 Metallic highlight regions on charms
+A017  chain_belt_occlusion_regions      Places where belt is hidden by pants/body
+
+------------------------------------------------------------
+H. NAVEL / BELLY PIERCING COMPONENTS
+------------------------------------------------------------
+
+N001  navel_piercing                    Entire belly button piercing assembly
+N002  upper_navel_stud                  Upper small stud/barbell
+N003  lower_navel_jewelry               Lower dangling piercing jewelry
+N004  navel_star_charm                  Star-shaped dangling charm
+N005  navel_highlight_point             Bright highlight on jewelry
+N006  navel_shadow_region               Shadowed belly button area
+N007  piercing_alignment_axis           Vertical alignment between upper and lower jewelry
+
+------------------------------------------------------------
+I. HAIR COMPONENTS
+------------------------------------------------------------
+
+R001  hair                              Whole hair region
+R002  hair_center_part                  Center part line
+R003  left_front_hair_panel             Hair falling on left front side
+R004  right_front_hair_panel            Hair falling on right front side
+R005  hair_over_chest_region            Hair overlapping upper torso
+R006  hair_over_back_region             Hair sheet over back
+R007  hair_tips                         Lower hair ends
+R008  hair_outer_silhouette             Outer contour of hair
+R009  hair_occluding_face               Hair strands partially covering face
+R010  hair_occluding_garment            Hair strands overlapping garment
+R011  hair_highlight_streaks            Thin highlight streaks in hair
+R012  hair_shadow_mass                  Dark internal hair mass
+
+------------------------------------------------------------
+J. POSE / JOINT / VIEW-CONDITIONING LANDMARKS
+------------------------------------------------------------
+
+J001  head_orientation                  Head pose / facing direction
+J002  torso_orientation                 Torso facing direction
+J003  hip_orientation                   Hip/pelvis facing direction
+J004  raised_arm_pose                   Arm raised over head
+J005  relaxed_arm_pose                  Lower arm relaxed beside body
+J006  left_hip_pop                      Hip shift / asymmetrical pose cue
+J007  shoulder_to_hip_axis              Main body pose axis
+J008  waist_centerline                  Vertical torso centerline
+J009  face_visibility_state             Whether face is visible in current view
+J010  hair_visibility_state             Whether hair region is visible in current view
+J011  navel_visibility_state            Whether navel/piercing is visible
+J012  strap_visibility_state            Whether hip strap is visible
+J013  chain_visibility_state            Whether chain belt is visible
+J014  glove_visibility_state            Whether gloves are visible
+
+------------------------------------------------------------
+K. RECOMMENDED CORE SAM3 LANDMARK SET
+------------------------------------------------------------
+
+Use these as the main stable tokens for a practical pipeline:
+
+L001  face_region                       Visible mostly in front and oblique views
+L002  hair_volume                       Visible in all views; especially useful in back/side views
+L003  upper_torso_garment               Bikini/top garment region
+L004  abdomen_navel_region              Abdomen with navel piercing
+L005  navel_piercing                    Small high-detail identity/accessory landmark
+L006  chain_belt                        Strong cross-view waist anchor
+L007  hip_strap_line                    Useful side/back waist landmark
+L008  gloves                            Handwear landmark visible across views
+L009  cargo_pants                       Large lower-body garment anchor
+L010  pants_pockets                     Back/side view garment details
+L011  belt_charms                       Small accessory detail anchor
+L012  fingernails                       Fine hand-detail landmark
+
+------------------------------------------------------------
+L. VISIBILITY GUIDANCE BY VIEW
+------------------------------------------------------------
+
+Front:
+- face_region
+- hair_volume
+- upper_torso_garment
+- abdomen_navel_region
+- navel_piercing
+- chain_belt
+- gloves
+- cargo_pants
+- fingernails
+
+Front-Right Oblique:
+- face_region
+- hair_volume
+- upper_torso_garment
+- abdomen_navel_region
+- navel_piercing
+- chain_belt
+- hip_strap_line
+- gloves
+- cargo_pants
+- fingernails
+
+Right Profile:
+- side_hair_profile
+- upper_torso_garment
+- abdomen_navel_region
+- navel_piercing
+- chain_belt
+- hip_strap_line
+- gloves
+- cargo_pants
+
+Back:
+- rear_hair_sheet
+- back_torso
+- back_garment_strap
+- rear_hip_strap_line
+- chain_belt
+- gloves
+- cargo_pants
+- back_pockets
+
+Front-Left Oblique:
+- face_region
+- hair_volume
+- upper_torso_garment
+- abdomen_navel_region
+- navel_piercing
+- chain_belt
+- hip_strap_line
+- gloves
+- cargo_pants
+- fingernails
+
+Left Profile:
+- side_hair_profile
+- upper_torso_garment
+- abdomen_navel_region
+- navel_piercing
+- chain_belt
+- hip_strap_line
+- gloves
+- cargo_pants
+
+------------------------------------------------------------
+M. NOTES FOR PAPER-SAFE TERMINOLOGY
+------------------------------------------------------------
+
+Prefer:
+- "upper_torso_garment" instead of casual chest-focused wording
+- "hip_strap_line" instead of underwear-specific wording
+- "navel_piercing" instead of belly-button casual wording
+- "handwear" or "gloves" instead of informal glove descriptions
+- "semantic landmark" or "view-dependent region" for SAM3 boxes/masks
+
+End of list.

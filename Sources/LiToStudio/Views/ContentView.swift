@@ -6,18 +6,26 @@ import LiToKit
 struct ContentView: View {
     // First run on a machine without the models: show setup instead of the app.
     @State private var needsSetup = WeightsInstaller.needsSetup
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         if needsSetup {
             SetupView { needsSetup = false }
         } else {
-            HStack(spacing: 0) {
-                Sidebar()
-                    .frame(width: 384)
-                Divider().overlay(Theme.stroke)
-                ViewerPane()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                HStack(spacing: 0) {
+                    Sidebar()
+                        .frame(width: 384)
+                    Divider().overlay(Theme.stroke)
+                    ViewerPane()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                if let item = model.lightboxItem {
+                    LightboxView(item: item) { model.lightboxItem = nil }
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.15), value: model.lightboxItem)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.bg)
         }
@@ -38,6 +46,7 @@ struct Sidebar: View {
                 SettingsPanel()
                 GenerateButton()
                 StatusArea()
+                LandmarkPanel()
                 Spacer(minLength: 0)
             }
             .padding(20)
@@ -77,12 +86,17 @@ struct DropZone: View {
             if model.inputImageURLs.count > 1 {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 72, maximum: 110), spacing: 6)],
                           spacing: 6) {
-                    ForEach(model.inputImageURLs, id: \.self) { url in
+                    ForEach(Array(model.inputImageURLs.enumerated()), id: \.element) { i, url in
                         if let img = NSImage(contentsOf: url) {
                             Image(nsImage: img)
                                 .resizable().scaledToFit()
                                 .frame(maxHeight: 110)
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .onTapGesture {
+                                    model.lightboxItem = LightboxItem(
+                                        url: url, title: "View \(i + 1) — \(url.lastPathComponent)",
+                                        subtitle: "input image")
+                                }
                         }
                     }
                 }
@@ -93,6 +107,10 @@ struct DropZone: View {
                     .resizable().scaledToFit()
                     .frame(maxHeight: 196)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .onTapGesture {
+                        model.lightboxItem = LightboxItem(
+                            url: url, title: url.lastPathComponent, subtitle: "input image")
+                    }
                 Text(url.lastPathComponent)
                     .font(.caption).foregroundStyle(Theme.dim).lineLimit(1)
             } else {
@@ -230,6 +248,31 @@ struct SettingsPanel: View {
                 .font(.system(size: 13))
             Text("Also writes a triangle-mesh .ply/.obj surface (geometry-first artifact, opens in Blender etc.).")
                 .font(.system(size: 10)).foregroundStyle(Theme.dim)
+            Divider().overlay(Theme.stroke)
+            Toggle("Auto-rotate viewport", isOn: $model.autoRotate)
+                .font(.system(size: 13))
+            Toggle("Building shimmer during generation", isOn: $model.buildShimmer)
+                .font(.system(size: 13))
+            Text("Viewport: drag to orbit manually any time. The shimmer is a subtle pulse on the live dot cloud while sampling.")
+                .font(.system(size: 10)).foregroundStyle(Theme.dim)
+            Divider().overlay(Theme.stroke)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Text concept guidance (experimental)")
+                    .font(.system(size: 13, weight: .medium))
+                TextField("e.g. chain belt, red ribbon…", text: $model.userPromptGuidance, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2 ... 4)
+                    .font(.system(size: 12))
+                if Config.sam3CoreMLDir != nil {
+                    Text("With SAM 3.1 installed, this phrase is segmented in every view and added to the landmark package (see the Semantic Landmarks panel). It guides grounding only — the LiTo checkpoint has no text pathway, so it does not change generated geometry.")
+                        .font(.system(size: 10)).foregroundStyle(Theme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Recorded in run metadata only. Install SAM 3.1 (weights/sam3-coreml) to segment this phrase per view. The LiTo checkpoint has no text conditioning, so it never alters generated geometry.")
+                        .font(.system(size: 10)).foregroundStyle(.orange.opacity(0.9))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
         .toggleStyle(.switch)
         .tint(Theme.accent)
@@ -245,7 +288,8 @@ struct SettingsPanel: View {
     }
 }
 
-/// What auto-detect measured and decided: default → detected per setting, with the math.
+/// What auto-detect measured and decided: per-view measurements first, then the
+/// global default → detected settings with the math.
 struct AnalysisPanel: View {
     let analysis: ImageAnalyzer.Analysis
 
@@ -254,6 +298,13 @@ struct AnalysisPanel: View {
             Text(analysis.summary)
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(Theme.dim)
+            if analysis.views.count > 1 {
+                ForEach(analysis.views) { ViewAnalysisRow(v: $0) }
+                Divider().overlay(Theme.stroke)
+            } else if let v = analysis.views.first {
+                ViewAnalysisRow(v: v)
+                Divider().overlay(Theme.stroke)
+            }
             ForEach(analysis.notes) { note in
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 6) {
@@ -278,6 +329,55 @@ struct AnalysisPanel: View {
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.bg.opacity(0.5)))
+    }
+}
+
+/// One uploaded view's measurements: dimensions, estimated orientation, subject
+/// statistics, and the per-view upscale decision with its reason.
+struct ViewAnalysisRow: View {
+    let v: ImageAnalyzer.ViewAnalysis
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 6) {
+                Text("V\(v.index + 1)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                Text("\(v.width)×\(v.height)")
+                    .font(.system(size: 10).monospacedDigit())
+                if v.orientation != .unknown {
+                    Text("\(v.orientation.label) (est.)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.dim)
+                }
+                Spacer()
+                Text(v.needsUpscale ? "upscale" : "as-is")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(v.needsUpscale ? Theme.accent : Theme.dim)
+            }
+            Text(metricsLine)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(Theme.dim)
+            Text(v.upscaleNote)
+                .font(.system(size: 9))
+                .foregroundStyle(Theme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var metricsLine: String {
+        var parts = [String]()
+        if v.subjectEstimateReliable, let area = v.maskAreaRatio {
+            parts.append("subject \(v.subjectLongSide)px · area \(Int(area * 100))%")
+        } else {
+            parts.append("subject: no reliable estimate (busy background)")
+        }
+        if v.framing != .unknown { parts.append(v.framing.label) }
+        parts.append(String(format: "λ %.2f", v.sharpness))
+        parts.append(String(format: "detail %.2f", v.subjectEdgeDensity))
+        parts.append(String(format: "τ %.2f", v.textureEntropy))
+        if v.premasked { parts.append("pre-masked") }
+        return parts.joined(separator: "  ")
     }
 }
 
@@ -308,28 +408,62 @@ struct GenerateButton: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        Button(action: { model.generate() }) {
-            HStack(spacing: 8) {
-                if model.isRunning {
-                    ProgressView().controlSize(.small).tint(.white)
-                    Text("Generating…")
-                } else {
-                    Image(systemName: "sparkles")
-                    Text("Generate 3D")
+        @Bindable var model = model
+        Group {
+            if model.isRunning {
+                // Stop replaces Generate while a run is active. Near the end of a
+                // candidate it asks whether to keep the nearly-done sample.
+                Button(action: { model.stopTapped() }) {
+                    HStack(spacing: 8) {
+                        if model.stopping {
+                            ProgressView().controlSize(.small).tint(.white)
+                            Text("Stopping…")
+                        } else {
+                            Image(systemName: "stop.fill")
+                            Text("Stop")
+                        }
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).frame(height: 46)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color(red: 0.75, green: 0.22, blue: 0.22))
+                    )
+                    .opacity(model.stopping ? 0.6 : 1)
                 }
+                .buttonStyle(.plain)
+                .disabled(model.stopping)
+                .confirmationDialog("This candidate is almost complete.",
+                                    isPresented: $model.showStopChoices) {
+                    Button("Finish candidate, then stop") { model.requestStop(.afterCandidate) }
+                    Button("Stop immediately", role: .destructive) { model.requestStop(.immediate) }
+                    Button("Keep generating", role: .cancel) {}
+                } message: {
+                    if let s = model.sampling {
+                        Text("Sampling is at step \(s.step)/\(s.total). Finishing keeps this candidate as the result; stopping now discards it.")
+                    }
+                }
+            } else {
+                Button(action: { model.generate() }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                        Text("Generate 3D")
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).frame(height: 46)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(model.canGenerate ? AnyShapeStyle(Theme.accentGradient)
+                                                    : AnyShapeStyle(Theme.card))
+                    )
+                    .opacity(model.canGenerate ? 1 : 0.5)
+                }
+                .buttonStyle(.plain)
+                .disabled(!model.canGenerate)
             }
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity).frame(height: 46)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(model.canGenerate || model.isRunning ? AnyShapeStyle(Theme.accentGradient)
-                                                               : AnyShapeStyle(Theme.card))
-            )
-            .opacity(model.canGenerate || model.isRunning ? 1 : 0.5)
         }
-        .buttonStyle(.plain)
-        .disabled(!model.canGenerate)
     }
 }
 
@@ -363,9 +497,17 @@ struct StatusArea: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.bad)
                     .padding(14).card()
+            case .cancelled:
+                Label("Stopped — no result produced", systemImage: "stop.circle.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.orange)
+                    .padding(14).card()
             }
 
-            if !model.previews.isEmpty {
+            if !model.viewStages.isEmpty || !model.trunkStages.isEmpty {
+                ProgressTreeView()
+                    .padding(14).card()
+            } else if !model.previews.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("PIPELINE STAGES").font(.caption2.weight(.semibold)).foregroundStyle(Theme.dim).tracking(1)
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -380,6 +522,11 @@ struct StatusArea: View {
                                             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                             .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
                                                 .strokeBorder(Theme.stroke))
+                                            .onTapGesture {
+                                                model.lightboxItem = LightboxItem(
+                                                    url: preview.imageURL,
+                                                    title: preview.label, subtitle: "")
+                                            }
                                     }
                                     Text(preview.label)
                                         .font(.system(size: 9))
@@ -490,20 +637,45 @@ struct ViewerPane: View {
                         .padding(16)
                     }
                     Spacer()
-                    HStack(spacing: 10) {
-                        Label(activeURL.lastPathComponent, systemImage: "cube.fill")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .lineLimit(1)
-                        Spacer()
-                        pill("Reveal", "magnifyingglass") {
-                            NSWorkspace.shared.activateFileViewerSelecting([activeURL])
+                    VStack(alignment: .leading, spacing: 6) {
+                        if active == .mesh {
+                            Text("Mesh is a marching-cubes reconstruction of the splat density field — fine detail is limited by the 64³ latent; hole filling beyond connected-component cleanup is not yet implemented.")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        pill("Open file…", "folder") { opening = true }
+                        HStack(spacing: 10) {
+                            Label(activeURL.lastPathComponent, systemImage: "cube.fill")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .lineLimit(1)
+                            Spacer()
+                            ExportMenu()
+                            pill("Reveal", "magnifyingglass") {
+                                NSWorkspace.shared.activateFileViewerSelecting([activeURL])
+                            }
+                            pill("Open file…", "folder") { opening = true }
+                        }
                     }
                     .padding(12)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .padding(16)
+                }
+            } else if model.phase == .cancelled, !model.liveCloud.isEmpty {
+                // Stopped without a result: keep the last intermediate occupancy
+                // cloud on screen instead of snapping to an empty viewport.
+                LiveCloudView(points: model.liveCloud, generation: model.liveCloudGen,
+                              progress: model.liveCloudProgress,
+                              autoRotate: model.autoRotate, shimmer: false)
+                    .ignoresSafeArea()
+                VStack {
+                    Spacer()
+                    Label("Stopped — last intermediate preview", systemImage: "stop.circle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(10)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(.bottom, 28)
                 }
             } else if running == nil {
                 VStack(spacing: 16) {
@@ -522,13 +694,40 @@ struct ViewerPane: View {
             }
 
             if let (stage, frac) = running {
-                // The shape assembling live: intermediate occupancy decodes as white dots.
+                // The shape assembling live: intermediate occupancy decodes as dots
+                // that firm up with real sampling progress.
                 if !model.liveCloud.isEmpty {
-                    LiveCloudView(points: model.liveCloud, generation: model.liveCloudGen)
+                    LiveCloudView(points: model.liveCloud, generation: model.liveCloudGen,
+                                  progress: model.liveCloudProgress,
+                                  autoRotate: model.autoRotate,
+                                  shimmer: model.buildShimmer)
                         .ignoresSafeArea()
                         .transition(.opacity)
                 }
                 VStack {
+                    HStack {
+                        Spacer()
+                        Button { model.autoRotate.toggle() } label: {
+                            Image(systemName: model.autoRotate ? "rotate.3d.fill" : "rotate.3d")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.white.opacity(model.autoRotate ? 0.95 : 0.6))
+                                .padding(7)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(model.autoRotate ? "Turntable on — click to stop" : "Turntable off — drag to orbit")
+                        Button { model.buildShimmer.toggle() } label: {
+                            Image(systemName: model.buildShimmer ? "wand.and.rays" : "wand.and.rays.inverse")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.white.opacity(model.buildShimmer ? 0.95 : 0.6))
+                                .padding(7)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(model.buildShimmer ? "Building shimmer on" : "Building shimmer off")
+                        .padding(.trailing, 16)
+                    }
+                    .padding(.top, 16)
                     Spacer()
                     VStack(spacing: 12) {
                         Text(stage).font(.headline).foregroundStyle(.white)
@@ -560,6 +759,59 @@ struct ViewerPane: View {
     }
 }
 
+/// Export the current run's artifacts (copies of files already on disk) via save
+/// panels. Items appear only when their file actually exists.
+struct ExportMenu: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Menu {
+            if let u = model.splatURL {
+                Button("Splat (.ply)") { export(u) }
+            }
+            if let u = model.meshURL {
+                Button("Mesh (.ply)") { export(u) }
+                let obj = u.deletingPathExtension().appendingPathExtension("obj")
+                if FileManager.default.fileExists(atPath: obj.path) {
+                    Button("Mesh (.obj)") { export(obj) }
+                }
+            }
+            if let u = sibling("_run.json") {
+                Button("Run metadata (.json)") { export(u) }
+            }
+            if let u = sibling("_landmarks.json") {
+                Button("Landmark package (.json)") { export(u) }
+            }
+        } label: {
+            Label("Export", systemImage: "square.and.arrow.up")
+                .font(.system(size: 12, weight: .medium))
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .foregroundStyle(Theme.accent)
+    }
+
+    /// `<base>_gs.ply` → `<base><suffix>` next to it, when the file exists.
+    private func sibling(_ suffix: String) -> URL? {
+        guard let splat = model.splatURL else { return nil }
+        let name = splat.lastPathComponent
+        guard name.hasSuffix("_gs.ply") else { return nil }
+        let base = String(name.dropLast("_gs.ply".count))
+        let url = splat.deletingLastPathComponent().appending(path: base + suffix)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    private func export(_ src: URL) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = src.lastPathComponent
+        panel.begin { resp in
+            guard resp == .OK, let dst = panel.url else { return }
+            try? FileManager.default.removeItem(at: dst)
+            try? FileManager.default.copyItem(at: src, to: dst)
+        }
+    }
+}
+
 // MARK: - Preview strip (intermediate pipeline outputs)
 
 struct PreviewStrip: View {
@@ -576,6 +828,10 @@ struct PreviewStrip: View {
                                 .scaledToFit()
                                 .frame(width: 80, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .onTapGesture {
+                                    model.lightboxItem = LightboxItem(
+                                        url: preview.imageURL, title: preview.label, subtitle: "")
+                                }
                         } else {
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
                                 .fill(Theme.card)

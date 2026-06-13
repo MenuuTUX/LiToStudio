@@ -27,12 +27,15 @@ public final class LiToEngine {
     public enum EngineError: Error, CustomStringConvertible {
         case emptyShape
         case noViews
+        case cancelled
         public var description: String {
             switch self {
             case .emptyShape:
                 return "The model found no object in this image — try a clearer subject on a clean background."
             case .noViews:
                 return "No conditioning images were provided."
+            case .cancelled:
+                return "Generation cancelled."
             }
         }
     }
@@ -46,6 +49,8 @@ public final class LiToEngine {
         public let viewYaws: [Float]
         /// Silhouette IoU per view at its yaw (−1 when scoring was skipped).
         public let viewIoUs: [Float]
+        /// The base seed that produced the kept candidate — reruns reproduce it.
+        public let seedUsed: UInt64
     }
 
     /// `weightsDir` holds `lito.safetensors` + `ss_dec_conv3d_16l8_fp16.safetensors`.
@@ -120,6 +125,8 @@ public final class LiToEngine {
                          seed: UInt64? = nil,
                          seedCandidates: Int = 1,
                          outSplatPLY: URL? = nil,
+                         onEvent: ((EngineEvent) -> Void)? = nil,
+                         cancel: GenCancelToken? = nil,
                          progress: @escaping (Double, String) -> Void,
                          onStepPreview: ((Int, Int) -> Void)? = nil,
                          onStepCloud: (([Float], Int, Int) -> Void)? = nil) throws -> GenResult {
@@ -132,8 +139,12 @@ public final class LiToEngine {
         var masks = [[Bool]]()                  // 64² alpha silhouettes for scoring
         let S = 64
         for (v, url) in imageURLs.enumerated() {
+            // Any cancel during preprocessing is immediate — there is no candidate
+            // to finish yet.
+            if cancel?.isRequested == true { throw EngineError.cancelled }
             let tag = nViews > 1 ? " — view \(v + 1)/\(nViews)" : ""
             progress(0.02 + 0.10 * Double(v) / Double(nViews), "Preprocessing image (\(res)²)\(tag)")
+            onEvent?(.viewPreprocessing(view: v))
             let condRGBA: MLXArray
             if let rgba = preprocessedRGBAs?[v] {
                 condRGBA = try Preprocess.condRGBA(rgbaURL: rgba, resolution: res)
@@ -142,9 +153,11 @@ public final class LiToEngine {
             }
             masks.append(Self.alphaMask(condRGBA: condRGBA, S: S))
             progress(0.04 + 0.12 * Double(v + 1) / Double(nViews), "Encoding image (DINOv2)\(tag)")
+            onEvent?(.viewEncoding(view: v))
             let c = dino(condRGBA: condRGBA)
             c.eval()
             conds.append(c)
+            onEvent?(.viewEncoded(view: v, tokens: c.dim(1), dim: c.dim(2)))
             Memory.clearCache()
         }
 
@@ -168,12 +181,15 @@ public final class LiToEngine {
             let viewLabel = nViews > 1 ? " · \(nViews) views (\(multiViewMode.rawValue))" : ""
             let f0 = 0.18 + 0.56 * Double(c) / Double(nCand)
             let fw = 0.56 / Double(nCand)
-            // Live cloud preview: decode the predicted-final latent's occupancy every few
-            // steps. minComponentFraction 0 keeps the stray specks — the coalescing fuzz
-            // is the point of the visual. Early steps may legitimately decode to nothing.
-            let cloudEvery = max(2, (ts.count - 1) / 5)
+            // Live cloud preview: decode the predicted-final latent's occupancy as the
+            // sampler runs. minComponentFraction 0 keeps the stray specks — the
+            // coalescing fuzz is the point of the visual. Early steps may legitimately
+            // decode to nothing (the dots genuinely grow in as the shape forms).
+            // Cadence: step 1 always, every 2nd step while coalescing, every step in
+            // the final 30 % — each emission costs one voxel+occupancy decode.
             let onStepSample: ((Int, Int, MLXArray) -> Void)? = onStepCloud == nil ? nil : { done, total, xPred in
-                guard done % cloudEvery == 0 || done == total else { return }
+                let finalStretch = done >= Int(Double(total) * 0.7)
+                guard done == 1 || done == total || finalStretch || done % 2 == 0 else { return }
                 let lat = xPred * Self.latentStd + Self.latentMean
                 let ss = self.voxel(latent: lat); ss.eval()
                 let logit = self.trellis(ssLatent: ss); logit.eval()
@@ -187,8 +203,13 @@ public final class LiToEngine {
             let sampled = dit.sample(x0: x0, ts: ts, conds: conds, cfgScale: cfgScale,
                                      mode: multiViewMode, onStep: { done, total in
                 progress(f0 + fw * Double(done) / Double(total), "Sampling shape — step \(done)/\(total)\(candLabel)\(viewLabel)")
+                onEvent?(.samplingStep(candidate: c + 1, candidates: nCand, step: done, total: total))
                 onStepPreview?(done, total)
-            }, onStepSample: onStepSample)
+            }, onStepSample: onStepSample,
+               shouldStop: cancel == nil ? nil : { cancel!.isImmediate })
+            // Immediate stop mid-candidate: the half-integrated latent is not a
+            // result — discard it rather than decode something that looks finished.
+            if cancel?.isImmediate == true { throw EngineError.cancelled }
             let candLatent = sampled * Self.latentStd + Self.latentMean
             candLatent.eval(); Memory.clearCache()
 
@@ -197,10 +218,15 @@ public final class LiToEngine {
             let (candCoords, candN) = trellis.initCoords(logit: logit, threshold: occupancyThreshold,
                                                          minComponentFraction: minComponentFraction)
             if !needScore {
+                onEvent?(.candidateDone(candidate: c + 1, candidates: nCand, meanIoU: nil))
                 latent = candLatent; coords = candCoords; n = candN
                 break
             }
-            guard candN > 0 else { continue }
+            guard candN > 0 else {
+                onEvent?(.candidateDone(candidate: c + 1, candidates: nCand, meanIoU: nil))
+                if cancel?.isRequested == true { throw EngineError.cancelled }
+                continue
+            }
 
             // Score: mean silhouette IoU over views. A single view is pinned to yaw 0
             // (the model faces the conditioning camera by construction). With several
@@ -226,27 +252,35 @@ public final class LiToEngine {
             } else {
                 progress(f0 + fw, String(format: "Candidate %d/%d — silhouette IoU %.3f", c + 1, nCand, score))
             }
+            onEvent?(.candidateDone(candidate: c + 1, candidates: nCand, meanIoU: score))
             if score > bestScore {
                 bestScore = score
                 latent = candLatent; coords = candCoords; n = candN
                 viewYaws = yaws; viewIoUs = ious
             }
+            // Finish-candidate stop: keep the best candidate so far and decode it
+            // instead of starting the next seed.
+            if cancel?.isRequested == true { break }
             if nCand == 1 { break }
         }
         guard n > 0 else { throw EngineError.emptyShape }
         progress(0.78, needScore ? String(format: "Best mean IoU %.3f — decoding", bestScore) : "Decoding structure")
+        onEvent?(.decoding)
 
         progress(0.88, "Decoding \(n) gaussians")
         let gs = gauss(latent: latent, initCoord: coords)
         gs.values.forEach { $0.eval() }; Memory.clearCache()
+        onEvent?(.decodedGaussians(count: n))
 
         progress(0.96, "Writing splat")
+        onEvent?(.writingOutput)
         if let splatURL = outSplatPLY {
             try Splat.writeGaussians(gs, to: splatURL)
         }
         let count = try Splat.writePointCloud(gs, to: outPLY, opacityThreshold: opacityThreshold)
         progress(1.0, "Done")
-        return GenResult(pointCount: count, viewYaws: viewYaws, viewIoUs: viewIoUs)
+        return GenResult(pointCount: count, viewYaws: viewYaws, viewIoUs: viewIoUs,
+                         seedUsed: baseSeed)
     }
 
     // MARK: - silhouette scoring

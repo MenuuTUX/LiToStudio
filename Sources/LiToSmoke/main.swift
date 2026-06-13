@@ -232,15 +232,234 @@ do {
         let urls = args[2].split(separator: ",").map { URL(filePath: String($0)) }
         let a = ImageAnalyzer.analyze(imageURLs: urls)
         print("measured: \(a.summary)")
-        for (i, m) in a.metrics.enumerated() {
-            print(String(format: "  view %d: %d×%d  ε=%.2f σ=%.2f λ=%.2f ℓ=%.2f%@",
-                         i + 1, m.width, m.height, m.edgeDensity, m.contrast, m.sharpness,
-                         m.luminance, m.premasked ? " (pre-masked)" : ""))
+        for v in a.views {
+            let subj = v.subjectEstimateReliable
+                ? String(format: "subj %dpx area %.0f%%", v.subjectLongSide, (v.maskAreaRatio ?? 0) * 100)
+                : "subj n/a"
+            print(String(format: "  view %d: %d×%d  %@  ε=%.2f(subj %.2f) σ=%.2f λ=%.2f ℓ=%.2f τ=%.2f  %@%@%@%@",
+                         v.index + 1, v.width, v.height, subj, v.edgeDensity, v.subjectEdgeDensity,
+                         v.contrast, v.sharpness, v.luminance, v.textureEntropy,
+                         v.orientation == .unknown ? "" : "\(v.orientation.label)(est) ",
+                         v.framing == .unknown ? "" : "\(v.framing.label) ",
+                         v.premasked ? "(pre-masked) " : "",
+                         v.needsUpscale ? "→ upscale" : "as-is"))
+            if let raised = v.raisedHand { print("      raised hand: \(raised)") }
+            print("      \(v.upscaleNote)")
         }
         print("settings (default → detected):")
         for n in a.notes {
             print("  \(n.name): \(n.defaultValue) → \(n.recommended)\(n.changed ? "  *" : "")")
             print("      \(n.reason)")
+        }
+    case "upscale":
+        // Exercise the 2K-policy upscale path: alpha-preserving Real-ESRGAN with the
+        // same cascade rule the app pipeline uses (second pass only when one 4× still
+        // leaves the subject under the 2K target and the canvas has headroom).
+        guard args.count >= 4 else {
+            print("usage: LiToSmoke upscale <esrgan.mlmodel> <in.png> [out.png]"); exit(1)
+        }
+        let up = try Upscaler(modelURL: URL(filePath: args[2]))
+        guard let cg = loadCG(args[3]) else { print("✗ can't read \(args[3])"); exit(1) }
+        let canvas = max(cg.width, cg.height)
+        let subj = ImageAnalyzer.subjectBoxEstimate(cg)?.longSide ?? canvas
+        print("in : \(cg.width)×\(cg.height)  alphaInfo=\(cg.alphaInfo.rawValue)  subject≈\(subj)px")
+        var out = try up.upscaleToMaxPreservingAlpha(cg, maxDim: ImageAnalyzer.canvasCapPx)
+        var passes = 1
+        var subjAfter = subj * max(out.width, out.height) / canvas
+        if subjAfter < ImageAnalyzer.subjectTargetPx,
+           max(out.width, out.height) < ImageAnalyzer.canvasCapPx {
+            out = try up.upscaleToMaxPreservingAlpha(out, maxDim: ImageAnalyzer.canvasCapPx)
+            subjAfter = subj * max(out.width, out.height) / canvas
+            passes = 2
+        }
+        print("out: \(out.width)×\(out.height)  alphaInfo=\(out.alphaInfo.rawValue)  subject≈\(subjAfter)px  (\(passes) pass\(passes > 1 ? "es" : ""))")
+        if args.count > 4 { try writePNG(out, to: URL(filePath: args[4])) }
+    case "landmarks":
+        // Build + print the landmark conditioning package exactly as the app does:
+        // labels from filename/pose, Vision pose features, taxonomy priors. No
+        // grounding backend exists, so the matrix carries expectations, never
+        // detections — the output says so.
+        guard args.count >= 3 else { print("usage: LiToSmoke landmarks <img[,img2,...]> [out.json]"); exit(1) }
+        let urls = args[2].split(separator: ",").map { URL(filePath: String($0)) }
+        let a = ImageAnalyzer.analyze(imageURLs: urls)
+        var labels = [ViewLabel](), sources = [String](), pose = [PoseFeatures?]()
+        for (i, u) in urls.enumerated() {
+            let va = a.views.first(where: { $0.index == i })
+            if let f = ViewLabel.fromFilename(u.deletingPathExtension().lastPathComponent) {
+                labels.append(f); sources.append("filename")
+            } else if let va, va.orientation != .unknown {
+                labels.append(ViewLabel(orientation: va.orientation)); sources.append("pose-estimate")
+            } else {
+                labels.append(.unknown); sources.append("none")
+            }
+            pose.append(va?.poseFeatures)
+        }
+        let pkg = LandmarkPackage.build(imagePaths: urls.map(\.path), labels: labels,
+                                        labelSources: sources, pose: pose)
+        print("backend: \(pkg.backend)")
+        print("consumed by generator: \(pkg.consumedByGenerator) — \(pkg.consumptionNote)")
+        for v in pkg.views {
+            let poseStr = v.poseFeatures.map { " pose: \($0.framing.rawValue)\($0.raisedHand.map { " raised:\($0)" } ?? "")" } ?? ""
+            print("  V\(v.index + 1) \(v.viewLabel.rawValue) (\(v.labelSource))  expected \(v.expectedTokens.count) tokens  detections \(v.observations.count)\(poseStr)")
+        }
+        print("visibility matrix (● detected ○ expected – not · ? unknown):")
+        for row in pkg.visibilityMatrix {
+            let cells = row.perView.map { c in
+                c.hasPrefix("detected") ? "●" : c == "expected" ? "○" : c == "not_expected" ? "–" : "?"
+            }.joined(separator: " ")
+            print(String(format: "  %@ %-22s %@", row.id, (row.token as NSString).utf8String!, cells))
+        }
+        if args.count > 3 {
+            let enc = JSONEncoder()
+            enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+            enc.dateEncodingStrategy = .iso8601
+            try enc.encode(pkg).write(to: URL(filePath: args[3]))
+            print("wrote \(args[3])")
+        }
+    case "sam3":
+        // Native SAM 3.1 CoreML check. `norms` mode runs one prompt under every
+        // input normalization (the conversion is undocumented — the right one is
+        // whichever produces a confident, plausibly-placed detection); default mode
+        // grounds all taxonomy prompts.
+        //   LiToSmoke sam3 <sam3-coreml-dir> <img> [norms|all|<promptID>] [threshold]
+        guard args.count >= 4 else {
+            print("usage: LiToSmoke sam3 <sam3-coreml-dir> <img> [norms|all|L001..] [threshold]"); exit(1)
+        }
+        let dir = URL(filePath: args[2])
+        guard let img = loadCG(args[3]) else { print("✗ can't read \(args[3])"); exit(1) }
+        let mode = args.count > 4 ? args[4] : "all"
+        let thr = args.count > 5 ? Float(args[5]) ?? 0.4 : 0.4
+        if mode == "norms" {
+            for norm in Sam3CoreML.Norm.allCases {
+                let t0 = Date()
+                let sam = try Sam3CoreML(dir: dir, norm: norm)
+                let res = try sam.detect(image: img, threshold: 0, onlyPrompt: "L001")
+                if let d = res.first?.detection {
+                    print(String(format: "%-9@ face: conf %.3f  mask-box [%.2f %.2f %.2f %.2f]  (%.1fs)",
+                                 norm.rawValue as NSString, d.confidence,
+                                 d.box[0], d.box[1], d.box[2], d.box[3],
+                                 -t0.timeIntervalSinceNow))
+                } else {
+                    print("\(norm.rawValue): face: NO mask above threshold")
+                }
+            }
+        } else {
+            let sam = try Sam3CoreML(dir: dir)
+            print("norm: \(sam.norm.rawValue) (override: LITO_SAM3_NORM)")
+            // Optional 5th arg = a cutout PNG → person silhouette for clean gating.
+            var personMask: [Bool]?
+            if args.count > 6, let cut = loadCG(args[6]) {
+                personMask = Sam3CoreML.personMask288(fromCutout: cut)
+                print("person mask: \(personMask != nil ? "from cutout" : "cutout had no alpha")")
+            } else {
+                personMask = Sam3CoreML.personMask288(fromCutout: img)
+                print("person mask: \(personMask != nil ? "from image alpha" : "none (opaque image)")")
+            }
+            let t0 = Date()
+            let res = try sam.detect(image: img, personMask: personMask, threshold: thr,
+                                     onlyPrompt: mode == "all" ? nil : mode)
+            print(String(format: "%.1fs for %d prompts", -t0.timeIntervalSinceNow, res.count))
+            for (p, det) in res {
+                if let d = det {
+                    let maskURL = FileManager.default.temporaryDirectory.appending(path: "sam3_\(p.id).png")
+                    let ovURL = FileManager.default.temporaryDirectory.appending(path: "sam3_\(p.id)_overlay.png")
+                    try Sam3CoreML.writeMask(d, to: maskURL, width: img.width, height: img.height)
+                    try? Sam3CoreML.writeOverlay(d, over: img, to: ovURL)
+                    print(String(format: "  %@ %-22@ conf %.3f  cov %.0f%% person %.0f%%  overlay → %@",
+                                 p.id, p.token as NSString, d.confidence,
+                                 d.coverage * 100, d.personCoverage * 100, ovURL.path))
+                } else {
+                    print("  \(p.id) \(p.token): not detected")
+                }
+            }
+        }
+    case "sam3concept":
+        // Free-text concept grounding through the full app path: CLIP tokenizer
+        // worker → SAM 3.1 → region overlay. Verifies the text-guidance feature.
+        //   LiToSmoke sam3concept <sam3-coreml-dir> <img> "<phrase>" [cutout]
+        guard args.count >= 5 else {
+            print("usage: LiToSmoke sam3concept <sam3-coreml-dir> <img> \"<phrase>\" [cutout]"); exit(1)
+        }
+        let dir = URL(filePath: args[2])
+        let phrase = args[4]
+        guard ClipTokenizer.isAvailable else { print("✗ backend venv missing (tokenizer)"); exit(1) }
+        let ids = try ClipTokenizer.tokenize([phrase])
+        let label = ViewLabel.fromFilename(URL(filePath: args[3]).deletingPathExtension().lastPathComponent) ?? .unknown
+        let cutouts: [URL?] = args.count > 5 ? [URL(filePath: args[5])] : [nil]
+        let sam = try Sam3CoreML(dir: dir)
+        let obs = try sam.groundConcept(phrase: phrase, tokenIds: ids[0], id: "USER",
+                                        images: [URL(filePath: args[3])], labels: [label],
+                                        masksDir: FileManager.default.temporaryDirectory.appending(path: "sam3concept"),
+                                        cutouts: cutouts)
+        if let o = obs.first ?? nil {
+            print(String(format: "“%@”: detected conf %.3f  person %.0f%%  overlay → %@",
+                         phrase, o.confidence, (o.personCoverage ?? 0) * 100, o.overlayPath ?? "?"))
+        } else {
+            print("“\(phrase)”: not found")
+        }
+    case "ground":
+        // End-to-end check of the Python backend adapters (RMBG cutouts, Sapiens2
+        // pose, SAM3 grounding) through the same Swift code the app uses. Needs the
+        // tools/backend venv; no engine weights.
+        guard args.count >= 3 else { print("usage: LiToSmoke ground <img[,img2,...]> [outDir]"); exit(1) }
+        let urls = args[2].split(separator: ",").map { URL(filePath: String($0)) }
+        let outDir = URL(filePath: args.count > 3 ? args[3]
+                         : FileManager.default.temporaryDirectory.appending(path: "lito_ground").path)
+        try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+        print("backend python: \(PythonBackend.python?.path ?? "NOT INSTALLED — run tools/backend/setup.sh")")
+        let glabels = urls.map { ViewLabel.fromFilename($0.deletingPathExtension().lastPathComponent) ?? .unknown }
+        if RMBGWorkerBackend.isAvailable {
+            let res = try RMBGWorkerBackend.cutouts(images: urls, outDir: outDir.appending(path: "cutouts"))
+            print("RMBG: \(res.backend) → \(res.cutouts.compactMap { $0 }.count)/\(urls.count) cutouts → \(outDir.path)/cutouts")
+        } else {
+            print("RMBG worker: unavailable (venv or briaai/RMBG-2.0 cache missing)")
+        }
+        if SapiensPoseBackend.isAvailable {
+            var boxes = [[Double]?]()
+            for u in urls {
+                if let cg = loadCG(u.path), let b = ImageAnalyzer.subjectBoxEstimate(cg) {
+                    boxes.append([Double(b.x) / Double(cg.width), Double(b.y) / Double(cg.height),
+                                  Double(b.width) / Double(cg.width), Double(b.height) / Double(cg.height)])
+                } else { boxes.append(nil) }
+            }
+            let recs = try SapiensPoseBackend.extract(images: urls, labels: glabels,
+                                                      subjectBoxes: boxes,
+                                                      outDir: outDir.appending(path: "pose"))
+            for (i, r) in recs.enumerated() {
+                guard let r else { print("Sapiens2 v\(i + 1): no result"); continue }
+                let g = r.groups.sorted { $0.key < $1.key }
+                    .map { "\($0.key) \($0.value.visible)/\($0.value.total)" }.joined(separator: " ")
+                print("Sapiens2 v\(i + 1): \(r.keypointCount) kp · \(g)\(r.raisedHand.map { " · raised \($0)" } ?? "")")
+            }
+        } else {
+            print("Sapiens2: \(SapiensPoseBackend.unavailableReason)")
+        }
+        // SAM3: native CoreML packages first (repo weights/sam3-coreml), gated
+        // python worker second — same precedence as the app pipeline.
+        let repoWeights = PythonBackend.backendDir?
+            .deletingLastPathComponent().deletingLastPathComponent().appending(path: "weights")
+        let sam3Res: Sam3RunResult?
+        if let rw = repoWeights, let dir = Sam3CoreML.locate(weightsDir: rw) {
+            let sam = try Sam3CoreML(dir: dir)
+            sam3Res = try sam.ground(images: urls, labels: glabels,
+                                     masksDir: outDir.appending(path: "masks"))
+        } else if Sam3Backend.isAvailable {
+            sam3Res = try Sam3Backend.detect(images: urls, labels: glabels,
+                                             masksDir: outDir.appending(path: "masks"))
+        } else {
+            sam3Res = nil
+            print("SAM3: \(Sam3Backend.unavailableReason)")
+        }
+        if let res = sam3Res {
+            print("SAM3: \(res.backend) → \(res.detectionCount) detections → \(outDir.path)/masks")
+            for (i, fs) in res.perView.enumerated() {
+                let line = fs.map { f in
+                    f.status == "detected"
+                        ? String(format: "%@(%.2f)", f.token, f.observation?.confidence ?? 0)
+                        : "\(f.token)=\(f.status)"
+                }.joined(separator: " ")
+                print("  v\(i + 1): \(line)")
+            }
         }
     case "texture":
         // Iterate on photo-texture backprojection on an existing splat without

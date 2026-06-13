@@ -1,0 +1,11 @@
+torch
+torchvision
+transformers
+huggingface_hub
+pillow
+numpy
+timm
+einops
+kornia
+coremltools
+safetensors

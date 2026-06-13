@@ -326,19 +326,26 @@ struct SceneKitView: NSViewRepresentable {
 
 // MARK: - Live generation preview (intermediate occupancy dots)
 
-/// White-dot point cloud shown while the DiT is sampling — the intermediate occupancy
+/// Dot point cloud shown while the DiT is sampling — the intermediate occupancy
 /// decodes stream in as flat [x,y,z]* world coords (LiTo z-up, ≈[-1,1]) and visibly
-/// coalesce into the final shape. Geometry swaps in place; the slow turntable keeps
-/// spinning across updates.
+/// coalesce into the final shape. Geometry swaps in place. The dots carry no color
+/// until the gaussian decode at the very end, so shading is neutral: brightness and
+/// dot size ramp with real sampling progress (sparse + dim early, solid late).
+/// Manual orbit is always available; the turntable and the subtle "building" shimmer
+/// are user-toggleable.
 struct LiveCloudView: NSViewRepresentable {
     let points: [Float]              // count·3, z-up world
     let generation: Int              // bump to force a geometry refresh
+    var progress: Double = 1         // sampling fraction the cloud came from
+    var autoRotate: Bool = false
+    var shimmer: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> SCNView {
         let view = SCNView()
-        view.allowsCameraControl = false
+        view.allowsCameraControl = true                 // manual orbit during generation
+        view.defaultCameraController.interactionMode = .orbitTurntable
         view.backgroundColor = .clear
         view.autoenablesDefaultLighting = false
         view.preferredFramesPerSecond = 30
@@ -349,8 +356,6 @@ struct LiveCloudView: NSViewRepresentable {
         cloud.eulerAngles.x = -.pi / 2          // LiTo z-up → SceneKit y-up
         pivot.addChildNode(cloud)
         scene.rootNode.addChildNode(pivot)
-        let spin = SCNAction.repeatForever(.rotateBy(x: 0, y: .pi * 2, z: 0, duration: 14))
-        pivot.runAction(spin)
 
         let cam = SCNCamera()
         cam.zNear = 0.01; cam.zFar = 50; cam.fieldOfView = 35
@@ -362,17 +367,44 @@ struct LiveCloudView: NSViewRepresentable {
 
         view.scene = scene
         context.coordinator.cloudNode = cloud
+        context.coordinator.pivotNode = pivot
         return view
     }
 
     func updateNSView(_ view: SCNView, context: Context) {
-        guard context.coordinator.generation != generation,
-              let cloud = context.coordinator.cloudNode, !points.isEmpty else { return }
-        context.coordinator.generation = generation
-        cloud.geometry = Self.dotGeometry(points)
+        let co = context.coordinator
+        if co.generation != generation, let cloud = co.cloudNode, !points.isEmpty {
+            co.generation = generation
+            cloud.geometry = Self.dotGeometry(points, progress: progress)
+        }
+        if let pivot = co.pivotNode {
+            if autoRotate, !co.isRotating {
+                let spin = SCNAction.repeatForever(.rotateBy(x: 0, y: .pi * 2, z: 0, duration: 14))
+                pivot.runAction(spin, forKey: "turntable")
+                co.isRotating = true
+            } else if !autoRotate, co.isRotating {
+                pivot.removeAction(forKey: "turntable")
+                co.isRotating = false
+            }
+        }
+        if let cloud = co.cloudNode {
+            if shimmer, !co.isShimmering {
+                // Subtle "still building" pulse: ±1.2 % scale, slow, ease in/out.
+                let grow = SCNAction.scale(to: 1.012, duration: 0.7)
+                grow.timingMode = .easeInEaseOut
+                let shrink = SCNAction.scale(to: 1.0, duration: 0.7)
+                shrink.timingMode = .easeInEaseOut
+                cloud.runAction(.repeatForever(.sequence([grow, shrink])), forKey: "shimmer")
+                co.isShimmering = true
+            } else if !shimmer, co.isShimmering {
+                cloud.removeAction(forKey: "shimmer")
+                cloud.scale = SCNVector3(1, 1, 1)
+                co.isShimmering = false
+            }
+        }
     }
 
-    private static func dotGeometry(_ pts: [Float]) -> SCNGeometry {
+    private static func dotGeometry(_ pts: [Float], progress: Double) -> SCNGeometry {
         let count = pts.count / 3
         let source = pts.withUnsafeBufferPointer {
             SCNGeometrySource(data: Data(buffer: $0), semantic: .vertex, vectorCount: count,
@@ -385,20 +417,26 @@ struct LiveCloudView: NSViewRepresentable {
             SCNGeometryElement(data: Data(buffer: $0), primitiveType: .point,
                                primitiveCount: count, bytesPerIndex: 4)
         }
-        element.pointSize = 3
+        // Dots firm up with real progress: small/dim while the shape is still a
+        // guess, larger/solid as sampling converges.
+        let p = max(0, min(1, progress))
+        element.pointSize = CGFloat(2 + 1.5 * p)
         element.minimumPointScreenSpaceRadius = 1
-        element.maximumPointScreenSpaceRadius = 3
+        element.maximumPointScreenSpaceRadius = CGFloat(2 + 2 * p)
         let geo = SCNGeometry(sources: [source], elements: [element])
         let m = SCNMaterial()
         m.lightingModel = .constant
-        m.diffuse.contents = NSColor.white
-        m.transparency = 0.92
+        m.diffuse.contents = NSColor(calibratedWhite: 0.75 + 0.25 * p, alpha: 1)
+        m.transparency = 0.55 + 0.4 * p
         geo.materials = [m]
         return geo
     }
 
     final class Coordinator {
         var cloudNode: SCNNode?
+        var pivotNode: SCNNode?
         var generation = -1
+        var isRotating = false
+        var isShimmering = false
     }
 }
